@@ -1,11 +1,11 @@
 """
-ASX Market Data Processor
+ASX Market Data Processor (Selenium Version)
 An integrated script to download, parse, and analyze ASX futures market data.
 Combines functionality from asx_downloader, parse_asx_futures, and process_date_range.
 
 Usage:
-  python asx_processor.py --date YYMMDD [options]
-  python asx_processor.py --date-range START_DATE END_DATE [options]
+  python asx_processor_selenium.py --date YYMMDD [options]
+  python asx_processor_selenium.py --date-range START_DATE END_DATE [options]
 """
 
 import os
@@ -27,89 +27,82 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Flag to track if we should use fallback mode
-PLAYWRIGHT_FAILED = False
+SELENIUM_FAILED = False
 
-# Try importing Playwright with better error handling
+# Try importing Selenium with better error handling
 try:
-    from playwright.sync_api import sync_playwright
-    # Handle version compatibility
-    try:
-        from playwright._impl._api_types import Error as PlaywrightError
-    except ImportError:
-        try:
-            from playwright.sync_api import Error as PlaywrightError
-        except ImportError:
-            # Define a generic error class if neither import works
-            class PlaywrightError(Exception):
-                pass
+    from selenium import webdriver
+    from selenium.webdriver.chrome.service import Service
+    from selenium.webdriver.chrome.options import Options
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    from selenium.common.exceptions import TimeoutException, WebDriverException, NoSuchElementException
 except ImportError as e:
-    logger.warning(f"Playwright import error: {str(e)}")
-    logger.warning("Will attempt to install Playwright")
-    PLAYWRIGHT_FAILED = True
+    logger.warning(f"Selenium import error: {str(e)}")
+    logger.warning("Will attempt to install Selenium")
+    SELENIUM_FAILED = True
 except Exception as e:
-    logger.error(f"Unexpected error importing Playwright: {str(e)}")
-    logger.error("Playwright may not be compatible with your system")
-    PLAYWRIGHT_FAILED = True
+    logger.error(f"Unexpected error importing Selenium: {str(e)}")
+    logger.error("Selenium may not be compatible with your system")
+    SELENIUM_FAILED = True
 
-# Try to install Playwright if it's not available
-if PLAYWRIGHT_FAILED:
+# Try to install Selenium if it's not available
+if SELENIUM_FAILED:
     try:
-        logger.info("Attempting to install Playwright dependencies...")
+        logger.info("Attempting to install Selenium dependencies...")
         import subprocess
-        result = subprocess.run([sys.executable, "-m", "pip", "install", "playwright"], 
-                               check=False, capture_output=True, text=True)
+        result = subprocess.run([sys.executable, "-m", "pip", "install", "selenium"], 
+                             check=False, capture_output=True, text=True)
         
         if result.returncode != 0:
-            logger.error("Failed to install Playwright")
+            logger.error("Failed to install Selenium")
             logger.error(f"Error: {result.stderr}")
             logger.error("Consider using requests-based fallback mode instead")
             # We don't exit here, as we'll check later if installation worked
         else:
-            logger.info("Playwright installed successfully")
+            logger.info("Selenium installed successfully")
             
-            # Try to install browser
-            browser_result = subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], 
-                                          check=False, capture_output=True, text=True)
+            # Try installing webdriver-manager to help with driver installation
+            webdriver_result = subprocess.run([sys.executable, "-m", "pip", "install", "webdriver-manager"], 
+                                           check=False, capture_output=True, text=True)
             
-            if browser_result.returncode != 0:
-                logger.error("Failed to install Playwright browser")
-                logger.error(f"Error: {browser_result.stderr}")
-                logger.error("Consider using requests-based fallback mode instead")
-                PLAYWRIGHT_FAILED = True
+            if webdriver_result.returncode != 0:
+                logger.error("Failed to install webdriver-manager")
+                logger.error(f"Error: {webdriver_result.stderr}")
+                logger.error("You may need to manually install browser drivers")
             else:
-                logger.info("Playwright browser installed successfully")
-                PLAYWRIGHT_FAILED = False
-                
-                # Try importing playwright again now that it's installed
-                try:
-                    from playwright.sync_api import sync_playwright
-                    try:
-                        from playwright._impl._api_types import Error as PlaywrightError
-                    except ImportError:
-                        try:
-                            from playwright.sync_api import Error as PlaywrightError
-                        except ImportError:
-                            class PlaywrightError(Exception):
-                                pass
-                except ImportError:
-                    logger.error("Still cannot import Playwright after installation")
-                    PLAYWRIGHT_FAILED = True
+                logger.info("webdriver-manager installed successfully")
+            
+            # Try importing selenium again now that it's installed
+            try:
+                from selenium import webdriver
+                from selenium.webdriver.chrome.service import Service
+                from selenium.webdriver.chrome.options import Options
+                from selenium.webdriver.common.by import By
+                from selenium.webdriver.support.ui import WebDriverWait
+                from selenium.webdriver.support import expected_conditions as EC
+                from selenium.common.exceptions import TimeoutException, WebDriverException, NoSuchElementException
+                SELENIUM_FAILED = False
+            except ImportError:
+                logger.error("Still cannot import Selenium after installation")
+                SELENIUM_FAILED = True
                 
     except Exception as e:
-        logger.error(f"Error during Playwright installation: {str(e)}")
-        logger.error("Your system may not be compatible with Playwright")
+        logger.error(f"Error during Selenium installation: {str(e)}")
+        logger.error("Your system may not be compatible with Selenium")
         logger.error("Consider using requests-based fallback mode instead")
-        PLAYWRIGHT_FAILED = True
+        SELENIUM_FAILED = True
 
 # Hardcoded configuration
 DEFAULT_CONFIG = {
     "output_dir": "downloads",
     "csv_dir": "csv",
-    "timeout": 60000,  # milliseconds
-    "delay": 5,        # seconds between downloads
-    "wait_time": 60,   # seconds for CAPTCHA
+    "timeout": 60,  # seconds
+    "delay": 5,     # seconds between downloads
+    "wait_time": 60,  # seconds for CAPTCHA
     "headless": True,
-    "browser": "chromium",
+    "browser": "chrome",
     "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
     "viewport": {
         "width": 1920,
@@ -162,6 +155,70 @@ class ASXProcessor:
         """Create directory if it doesn't exist."""
         os.makedirs(directory, exist_ok=True)
         return directory
+    
+    def _setup_webdriver(self, headless=True):
+        """Set up and return a Selenium WebDriver instance."""
+        try:
+            # Try to use webdriver-manager for driver installation if available
+            try:
+                from webdriver_manager.chrome import ChromeDriverManager
+                from webdriver_manager.firefox import GeckoDriverManager
+                
+                driver_manager_available = True
+            except ImportError:
+                driver_manager_available = False
+                logger.warning("webdriver-manager not available, using local driver if present")
+            
+            # Configure options based on browser type
+            if self.config.get("browser", "chrome").lower() == "firefox":
+                options = webdriver.FirefoxOptions()
+                if headless:
+                    options.add_argument("--headless")
+                
+                options.add_argument(f"--width={self.config.get('viewport', {}).get('width', 1920)}")
+                options.add_argument(f"--height={self.config.get('viewport', {}).get('height', 1080)}")
+                options.add_argument(f"user-agent={self.config.get('user_agent')}")
+                
+                # Initialize driver with or without webdriver-manager
+                if driver_manager_available:
+                    service = Service(GeckoDriverManager().install())
+                    driver = webdriver.Firefox(service=service, options=options)
+                else:
+                    driver = webdriver.Firefox(options=options)
+                    
+            else:  # Default to Chrome
+                options = Options()
+                if headless:
+                    options.add_argument("--headless=new")  # new headless mode for Chrome
+                
+                options.add_argument(f"--window-size={self.config.get('viewport', {}).get('width', 1920)},"
+                                    f"{self.config.get('viewport', {}).get('height', 1080)}")
+                options.add_argument(f"user-agent={self.config.get('user_agent')}")
+                
+                # Initialize driver with or without webdriver-manager
+                if driver_manager_available:
+                    service = Service(ChromeDriverManager().install())
+                    driver = webdriver.Chrome(service=service, options=options)
+                else:
+                    driver = webdriver.Chrome(options=options)
+            
+            # Set timeout for the driver
+            driver.set_page_load_timeout(self.config.get("timeout", 60))
+            
+            return driver
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize WebDriver: {str(e)}")
+            
+            # Provide more specific error message for common issues
+            if "executable needs to be in PATH" in str(e):
+                logger.error("Chrome/Firefox driver executable not found in PATH")
+                logger.error("Consider installing webdriver-manager: pip install webdriver-manager")
+            elif "Chrome version" in str(e) and "Chrome driver version" in str(e):
+                logger.error("Chrome driver version mismatch with Chrome browser version")
+                logger.error("Try updating Chrome or using webdriver-manager to manage drivers")
+            
+            return None
     
     def process_date_range(self, start_date, end_date, report_type="market", analyze=True):
         """Process a range of dates."""
@@ -240,7 +297,7 @@ class ASXProcessor:
     
     def download_report(self, date_str, report_type="market"):
         """
-        Download ASX report for a specific date.
+        Download ASX report for a specific date using Selenium.
         
         Args:
             date_str: Date string in YYMMDD format
@@ -249,11 +306,10 @@ class ASXProcessor:
         Returns:
             str: Path to the downloaded file or None if download failed
         """
-        # Check if Playwright is available
-        if PLAYWRIGHT_FAILED:
-            logger.error("Playwright is not available on this system")
+        # Check if Selenium is available
+        if SELENIUM_FAILED:
+            logger.error("Selenium is not available on this system")
             logger.error("Consider using the fallback mode with requests")
-            logger.error("Run: python download_asx_backwards.py --fallback")
             return None
             
         # Get report configuration
@@ -279,135 +335,96 @@ class ASXProcessor:
         for attempt in range(1, max_retries + 1):
             logger.info(f"Attempt {attempt}/{max_retries}...")
             
+            driver = None
             try:
-                with sync_playwright() as playwright:
-                    # Select browser type
-                    browser_factory = getattr(playwright, self.config.get("browser", "chromium"))
+                # Initialize WebDriver
+                driver = self._setup_webdriver(headless=self.config.get("headless", True))
+                if not driver:
+                    raise Exception("Failed to initialize WebDriver")
+                
+                # Navigate to URL
+                logger.info(f"Visiting URL: {url}")
+                driver.get(url)
+                
+                # Check if page loaded successfully
+                if "404" in driver.title or "Not Found" in driver.title:
+                    logger.error(f"Page not found. No data available for {date_str}.")
+                    return None
+                
+                # Check for captcha or other verification
+                page_source = driver.page_source.lower()
+                if "captcha" in page_source or "verification" in page_source:
+                    logger.warning("CAPTCHA detected!")
                     
-                    # Launch browser
-                    try:
-                        browser = browser_factory.launch(headless=self.config.get("headless", True))
-                    except Exception as e:
-                        logger.error(f"Browser could not be launched: {str(e)}")
-                        logger.error("Your system may not support Playwright browser automation")
-                        logger.error("Consider using the fallback mode with requests")
-                        return None
+                    # If in headless mode, restart in non-headless mode
+                    if self.config.get("headless", True):
+                        logger.info("Restarting in non-headless mode for CAPTCHA...")
+                        driver.quit()
+                        driver = self._setup_webdriver(headless=False)
+                        if not driver:
+                            raise Exception("Failed to restart WebDriver in non-headless mode")
                         
-                    context = browser.new_context(
-                        viewport=self.config.get("viewport", {"width": 1920, "height": 1080}),
-                        user_agent=self.config.get("user_agent")
+                        # Navigate to URL again
+                        driver.get(url)
+                    
+                    # Wait for manual CAPTCHA completion
+                    logger.info(f"Please complete the CAPTCHA in the browser window...")
+                    logger.info(f"Waiting up to {self.config.get('wait_time', 60)} seconds for completion...")
+                    
+                    # Wait for page to change or timeout
+                    wait_time = self.config.get('wait_time', 60)
+                    WebDriverWait(driver, wait_time).until(
+                        lambda d: "captcha" not in d.page_source.lower() and "verification" not in d.page_source.lower()
                     )
+                
+                # Get the HTML content
+                html_content = driver.page_source
+                
+                # Save HTML content to file
+                with open(output_path, "w", encoding="utf-8") as f:
+                    f.write(html_content)
+                
+                # Verify file was saved with proper content
+                if os.path.exists(output_path) and os.path.getsize(output_path) > 100:
+                    logger.info(f"✓ Download successful: {output_path}")
+                    return output_path
+                else:
+                    logger.error("Downloaded file is too small or empty")
+                    continue  # Try again
+                
+            except TimeoutException:
+                logger.error(f"Timeout while loading URL: {url}")
+                if attempt == max_retries:
+                    return None
                     
-                    # Create a new page
-                    page = context.new_page()
+            except WebDriverException as e:
+                logger.error(f"WebDriver error: {str(e)}")
+                error_msg = str(e).lower()
+                
+                # Handle common WebDriver errors
+                if "chrome not reachable" in error_msg:
+                    logger.error("Browser crashed or was forcibly closed")
+                elif "timeout" in error_msg:
+                    logger.error("Browser timed out")
+                elif "session deleted" in error_msg:
+                    logger.error("Browser session was deleted")
+                
+                if attempt == max_retries:
+                    return None
                     
-                    # Set page timeout
-                    page.set_default_timeout(self.config.get("timeout", 60000))
-                    
-                    # Navigate to URL
-                    logger.info(f"Visiting URL: {url}")
-                    try:
-                        response = page.goto(url)
-                    except PlaywrightError as e:
-                        logger.error(f"Navigation error: {str(e)}")
-                        browser.close()
-                        
-                        if "net::ERR_NAME_NOT_RESOLVED" in str(e):
-                            logger.error("Network error - check your internet connection")
-                        if attempt == max_retries:
-                            return None
-                        continue
-                    
-                    # Check HTTP status code
-                    status = response.status if response else 0
-                    if status >= 400:
-                        logger.warning(f"HTTP error: {status}")
-                        if status == 404:
-                            logger.error(f"Page not found. No data available for {date_str}.")
-                            browser.close()
-                            return None
-                        browser.close()
-                        if attempt == max_retries:
-                            raise Exception(f"HTTP status code: {status}")
-                        continue
-                    
-                    # Wait for page to load
-                    try:
-                        page.wait_for_load_state("networkidle")
-                    except PlaywrightError as e:
-                        logger.error(f"Error waiting for page load: {str(e)}")
-                        browser.close()
-                        if attempt == max_retries:
-                            return None
-                        continue
-                    
-                    # Check for captcha or other verification
-                    if "captcha" in page.content().lower() or "verification" in page.content().lower():
-                        logger.warning("CAPTCHA detected!")
-                        
-                        # If in headless mode, switch to non-headless for CAPTCHA
-                        if self.config.get("headless", True):
-                            logger.info("Restarting in non-headless mode for CAPTCHA...")
-                            browser.close()
-                            
-                            # Re-launch with headless=False
-                            try:
-                                browser = browser_factory.launch(headless=False)
-                            except Exception as e:
-                                logger.error(f"Cannot launch browser for CAPTCHA: {str(e)}")
-                                logger.error("Your system may not support browser GUI")
-                                return None
-                                
-                            context = browser.new_context(
-                                viewport=self.config.get("viewport", {"width": 1920, "height": 1080}),
-                                user_agent=self.config.get("user_agent")
-                            )
-                            page = context.new_page()
-                            page.goto(url)
-                        
-                        # Wait for manual CAPTCHA completion
-                        logger.info(f"Please complete the CAPTCHA in the browser window...")
-                        logger.info(f"Waiting up to {self.config.get('wait_time', 60)} seconds for completion...")
-                        
-                        # Wait for navigation or timeout
-                        try:
-                            page.wait_for_load_state("networkidle", timeout=self.config.get("wait_time", 60) * 1000)
-                        except Exception as e:
-                            logger.error(f"Timeout waiting for CAPTCHA: {str(e)}")
-                            browser.close()
-                            continue  # Try again
-                    
-                    # Get the HTML content
-                    html_content = page.content()
-                    
-                    # Save HTML content to file
-                    with open(output_path, "w", encoding="utf-8") as f:
-                        f.write(html_content)
-                    
-                    # Verify file was saved with proper content
-                    if os.path.exists(output_path) and os.path.getsize(output_path) > 100:
-                        logger.info(f"✓ Download successful: {output_path}")
-                        browser.close()
-                        return output_path
-                    else:
-                        logger.error("Downloaded file is too small or empty")
-                        browser.close()
-                        continue  # Try again
-                        
             except Exception as e:
                 logger.error(f"Error during download: {str(e)}")
-                
-                # Check for specific Playwright compatibility errors
-                error_msg = str(e).lower()
-                if "executable not found" in error_msg or "browser not installed" in error_msg:
-                    logger.error("Browser executable not found. Your system may not be compatible with Playwright.")
-                    logger.error("Consider using the fallback mode with requests")
-                    return None
-                
-                # If last attempt, give up
                 if attempt == max_retries:
-                    logger.error(f"Failed to download after {max_retries} attempts.")
                     return None
+                    
+            finally:
+                # Clean up WebDriver
+                if driver:
+                    try:
+                        driver.quit()
+                    except Exception:
+                        # Ignore errors during cleanup
+                        pass
         
         return None
     
@@ -475,50 +492,86 @@ class ASXProcessor:
             # Data structure to hold all contracts
             all_data = []
             
-            # Find all contract tables (they have a header row with class="Headbold")
+            # 使用更健壮的方法查找所有合约部分
+            # 每个合约部分都以class="Headbold"的行开始
             contract_headers = soup.find_all('tr', class_='Headbold')
             
             for header in contract_headers:
-                # Get contract name
+                # 获取合约名称
                 contract_name = header.get_text().strip()
+                logger.debug(f"Processing contract: {contract_name}")
                 
-                # Get the table that contains this header
-                table = header.parent
+                # 查找紧接着合约名之后的表头行
+                column_header_row = None
+                current = header
+                while current and not column_header_row:
+                    current = current.find_next_sibling('tr')
+                    if current and 'noHighlight' in current.get('class', []):
+                        # 检查这是否是列标题行（应该包含"Expiry"）
+                        if current.find(text=re.compile(r'Expiry', re.IGNORECASE)):
+                            column_header_row = current
                 
-                # Find the row with column headers (it's a row with class="noHighlight")
-                column_header_row = table.find('tr', class_='noHighlight')
                 if not column_header_row:
+                    logger.warning(f"Could not find column headers for contract: {contract_name}")
                     continue
-                    
-                # Extract column headers
+                
+                # 提取列标题
                 headers = []
                 for td in column_header_row.find_all('td'):
-                    headers.append(td.get_text().strip())
+                    header_text = td.get_text().strip()
+                    if header_text:
+                        headers.append(header_text)
+                    else:
+                        headers.append(f"Column_{len(headers)+1}")
                 
-                # Find data rows (with class="Highlight")
-                data_rows = table.find_all('tr', class_='Highlight')
+                logger.debug(f"Found headers for {contract_name}: {headers}")
                 
-                # Extract data from each row
+                # 查找下一个合约标题，以确定当前合约部分的结束位置
+                next_header = header.find_next('tr', class_='Headbold')
+                
+                # 获取当前合约部分的所有数据行
+                data_rows = []
+                current = column_header_row
+                
+                # 从列标题行之后开始查找数据行
+                while current:
+                    current = current.find_next_sibling('tr')
+                    
+                    # 如果已经到达下一个合约标题，就停止
+                    if not current or (next_header and current.sourceline >= next_header.sourceline):
+                        break
+                    
+                    # 只处理具有Highlight或noHighlight类的行（数据行）
+                    if current.get('class') and ('Highlight' in current.get('class') or 'noHighlight' in current.get('class')):
+                        # 排除那些可能是总结行或者非数据行的行
+                        if not current.find('img') and current.find_all('td'):
+                            # 确认这是一个数据行（第一个单元格通常包含到期日）
+                            first_cell = current.find('td')
+                            if first_cell and first_cell.get_text().strip():
+                                data_rows.append(current)
+                
+                # 从数据行中提取数据
                 for row in data_rows:
-                    row_data = {}
                     cells = row.find_all('td')
                     
-                    # Make sure we have the right number of cells
+                    # 确保单元格数量与列标题数量一致
                     if len(cells) != len(headers):
+                        logger.warning(f"Row has {len(cells)} cells but expected {len(headers)}")
                         continue
                     
-                    # Extract data into a dictionary
+                    # 提取行数据
+                    row_data = {}
                     for i, cell in enumerate(cells):
                         row_data[headers[i]] = cell.get_text().strip()
                     
-                    # Add contract name and report date
+                    # 添加合约名称和报告日期
                     row_data['Contract'] = contract_name
                     row_data['Report Date'] = report_date
                     
-                    # Add to our data collection
+                    # 添加到数据集合
                     all_data.append(row_data)
             
-            # Create DataFrame
+            # 创建DataFrame
             if all_data:
                 df = pd.DataFrame(all_data)
                 return df
@@ -528,6 +581,8 @@ class ASXProcessor:
                 
         except Exception as e:
             logger.error(f"Error parsing market HTML file: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
             return None
     
     def _parse_offmarket_html(self, html_file):
@@ -579,12 +634,16 @@ class ASXProcessor:
                     if not header_row:
                         continue
                     
-                    # Extract headers
+                    # Extract headers - 修改这部分不使用Column_N格式
                     headers = []
                     for td in header_row.find_all('td'):
                         header_text = td.get_text().strip()
+                        # 使用空字符串或有意义的名称替代Column_N
                         if header_text:
                             headers.append(header_text)
+                        else:
+                            # 使用空字符串作为列名
+                            headers.append("")
                     
                     # Skip the black line after the header
                     divider = header_row.find_next('tr')
@@ -607,13 +666,12 @@ class ASXProcessor:
                         
                         # Extract data
                         cells = current_row.find_all('td')
-                        if len(cells) < len(headers):
+                        if len(cells) != len(headers):  # 修改检查条件，确保单元格数量与表头数量一致
                             continue
                         
                         row_data = {}
                         for i, cell in enumerate(cells):
-                            if i < len(headers):
-                                row_data[headers[i]] = cell.get_text().strip()
+                            row_data[headers[i]] = cell.get_text().strip()
                         
                         # Add metadata
                         row_data['Section'] = current_section
@@ -745,7 +803,7 @@ def validate_date_format(date_str):
 def main():
     """Main function to handle command-line arguments and run the processor."""
     parser = argparse.ArgumentParser(
-        description="ASX Market Data Processor",
+        description="ASX Market Data Processor (Selenium Version)",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     
@@ -753,7 +811,7 @@ def main():
     date_group = parser.add_mutually_exclusive_group(required=True)
     date_group.add_argument("--date", help="Single date (YYMMDD format, e.g., 240301)")
     date_group.add_argument("--date-range", nargs=2, metavar=("START_DATE", "END_DATE"), 
-                           help="Date range (YYMMDD format, e.g., 240301 240310)")
+                          help="Date range (YYMMDD format, e.g., 240301 240310)")
     
     # Report type
     parser.add_argument("--report-type", choices=["market", "offmarket", "both"], default="market",
@@ -773,15 +831,18 @@ def main():
     parser.add_argument("--no-headless", dest="headless", action="store_false", default=True,
                       help="Don't use headless mode (show browser UI)")
     
+    # Browser choice
+    parser.add_argument("--browser", choices=["chrome", "firefox"], default="chrome",
+                      help="Browser to use for Selenium")
+    
     # Parse arguments
     args = parser.parse_args()
     
-    # Check if Playwright is available and inform user early if not
-    if PLAYWRIGHT_FAILED:
+    # Check if Selenium is available and inform user early if not
+    if SELENIUM_FAILED:
         logger.warning("=" * 80)
-        logger.warning("WARNING: Playwright is not available or not supported on this system")
-        logger.warning("For better compatibility, consider using:")
-        logger.warning("python download_asx_backwards.py --fallback")
+        logger.warning("WARNING: Selenium is not available or not supported on this system")
+        logger.warning("For better compatibility, consider using a fallback mode with requests")
         logger.warning("=" * 80)
     
     # Validate dates
@@ -807,6 +868,7 @@ def main():
     config["output_dir"] = args.output_dir
     config["csv_dir"] = args.csv_dir
     config["headless"] = args.headless
+    config["browser"] = args.browser
     
     # Initialize processor
     processor = ASXProcessor(config)
