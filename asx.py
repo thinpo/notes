@@ -127,18 +127,6 @@ REPORT_TYPES = {
     }
 }
 
-# Australian holidays (format: MM-DD)
-AUSTRALIAN_HOLIDAYS = [
-    "01-01",  # New Year's Day
-    "01-26",  # Australia Day
-    "04-07",  # Good Friday (2023)
-    "04-10",  # Easter Monday (2023)
-    "04-25",  # Anzac Day
-    "06-12",  # King's Birthday
-    "12-25",  # Christmas Day
-    "12-26",  # Boxing Day
-]
-
 
 class ASXProcessor:
     """Class to handle downloading, parsing, and analyzing ASX futures data."""
@@ -234,7 +222,6 @@ class ASXProcessor:
             "analyze_success": 0,
             "analyze_failed": 0,
             "skipped_weekend": 0,
-            "skipped_holiday": 0
         }
         
         for date_str in date_list:
@@ -246,12 +233,6 @@ class ASXProcessor:
                 results["skipped_weekend"] += 1
                 continue
             
-            # Skip holidays
-            if self._is_holiday(date_str):
-                logger.info(f"Skipping holiday date: {date_str}")
-                results["skipped_holiday"] += 1
-                continue
-                
             results["processed"] += 1
             
             # Download
@@ -286,7 +267,6 @@ class ASXProcessor:
         logger.info(f"Total dates in range: {len(date_list)}")
         logger.info(f"Dates processed: {results['processed']}")
         logger.info(f"Weekends skipped: {results['skipped_weekend']}")
-        logger.info(f"Holidays skipped: {results['skipped_holiday']}")
         logger.info(f"Downloads: {results['download_success']} succeeded, {results['download_failed']} failed")
         logger.info(f"Parsing: {results['parse_success']} succeeded, {results['parse_failed']} failed")
         
@@ -460,14 +440,25 @@ class ASXProcessor:
             else:
                 df = self._parse_offmarket_html(html_file)
             
-            if df is not None and not df.empty:
-                # Save to CSV
-                df.to_csv(output_path, index=False)
-                logger.info(f"Saved parsed data to {output_path}")
-                return output_path
-            else:
-                logger.warning(f"No data extracted from {html_file}")
-                return None
+            # Create an empty DataFrame with report date if no data found
+            if df is None:
+                df = pd.DataFrame([{'Report Date': date_str, 'Message': 'No Data Available'}])
+            elif df.empty:
+                df = pd.DataFrame([{'Report Date': date_str, 'Message': 'No Data Available'}])
+            
+            # Remove completely empty columns
+            if not df.empty and len(df.columns) > 1:
+                # Drop columns that are entirely empty
+                df = df.dropna(axis=1, how='all')
+                # Also drop columns that only contain empty strings
+                for col in df.columns:
+                    if df[col].astype(str).str.strip().eq('').all():
+                        df = df.drop(columns=[col])
+            
+            # Save to CSV
+            df.to_csv(output_path, index=False)
+            logger.info(f"Saved parsed data to {output_path}")
+            return output_path
         
         except Exception as e:
             logger.error(f"Error parsing HTML file: {str(e)}")
@@ -492,22 +483,22 @@ class ASXProcessor:
             # Data structure to hold all contracts
             all_data = []
             
-            # 使用更健壮的方法查找所有合约部分
-            # 每个合约部分都以class="Headbold"的行开始
+            # Use more robust method to find all contract sections
+            # Each contract section starts with a row that has class="Headbold"
             contract_headers = soup.find_all('tr', class_='Headbold')
             
             for header in contract_headers:
-                # 获取合约名称
+                # Get contract name
                 contract_name = header.get_text().strip()
                 logger.debug(f"Processing contract: {contract_name}")
                 
-                # 查找紧接着合约名之后的表头行
+                # Find the next column header row
                 column_header_row = None
                 current = header
                 while current and not column_header_row:
                     current = current.find_next_sibling('tr')
                     if current and 'noHighlight' in current.get('class', []):
-                        # 检查这是否是列标题行（应该包含"Expiry"）
+                        # Check if this is the column header row (should contain "Expiry")
                         if current.find(text=re.compile(r'Expiry', re.IGNORECASE)):
                             column_header_row = current
                 
@@ -515,7 +506,7 @@ class ASXProcessor:
                     logger.warning(f"Could not find column headers for contract: {contract_name}")
                     continue
                 
-                # 提取列标题
+                # Extract column headers
                 headers = []
                 for td in column_header_row.find_all('td'):
                     header_text = td.get_text().strip()
@@ -526,52 +517,52 @@ class ASXProcessor:
                 
                 logger.debug(f"Found headers for {contract_name}: {headers}")
                 
-                # 查找下一个合约标题，以确定当前合约部分的结束位置
+                # Find the next contract header to determine end of current contract section
                 next_header = header.find_next('tr', class_='Headbold')
                 
-                # 获取当前合约部分的所有数据行
+                # Get all data rows for the current contract section
                 data_rows = []
                 current = column_header_row
                 
-                # 从列标题行之后开始查找数据行
+                # Start searching from column header row
                 while current:
                     current = current.find_next_sibling('tr')
                     
-                    # 如果已经到达下一个合约标题，就停止
+                    # If we've reached the next contract header, stop
                     if not current or (next_header and current.sourceline >= next_header.sourceline):
                         break
                     
-                    # 只处理具有Highlight或noHighlight类的行（数据行）
+                    # Only process rows with Highlight or noHighlight classes (data rows)
                     if current.get('class') and ('Highlight' in current.get('class') or 'noHighlight' in current.get('class')):
-                        # 排除那些可能是总结行或者非数据行的行
+                        # Exclude those that might be summary rows or non-data rows
                         if not current.find('img') and current.find_all('td'):
-                            # 确认这是一个数据行（第一个单元格通常包含到期日）
+                            # Confirm this is a data row (first cell usually contains expiry)
                             first_cell = current.find('td')
                             if first_cell and first_cell.get_text().strip():
                                 data_rows.append(current)
                 
-                # 从数据行中提取数据
+                # Extract data from data rows
                 for row in data_rows:
                     cells = row.find_all('td')
                     
-                    # 确保单元格数量与列标题数量一致
+                    # Ensure cell count matches column header count
                     if len(cells) != len(headers):
                         logger.warning(f"Row has {len(cells)} cells but expected {len(headers)}")
                         continue
                     
-                    # 提取行数据
+                    # Extract row data
                     row_data = {}
                     for i, cell in enumerate(cells):
                         row_data[headers[i]] = cell.get_text().strip()
                     
-                    # 添加合约名称和报告日期
+                    # Add contract name and report date
                     row_data['Contract'] = contract_name
                     row_data['Report Date'] = report_date
                     
-                    # 添加到数据集合
+                    # Add to data collection
                     all_data.append(row_data)
             
-            # 创建DataFrame
+            # Create DataFrame
             if all_data:
                 df = pd.DataFrame(all_data)
                 return df
@@ -634,16 +625,15 @@ class ASXProcessor:
                     if not header_row:
                         continue
                     
-                    # Extract headers - 修改这部分不使用Column_N格式
+                    # Extract headers - modify this part not to use Column_N format
                     headers = []
                     for td in header_row.find_all('td'):
                         header_text = td.get_text().strip()
-                        # 使用空字符串或有意义的名称替代Column_N
                         if header_text:
                             headers.append(header_text)
                         else:
-                            # 使用空字符串作为列名
-                            headers.append("")
+                            # Use placeholder, will be removed later
+                            headers.append("EMPTY_COLUMN_PLACEHOLDER")
                     
                     # Skip the black line after the header
                     divider = header_row.find_next('tr')
@@ -666,7 +656,7 @@ class ASXProcessor:
                         
                         # Extract data
                         cells = current_row.find_all('td')
-                        if len(cells) != len(headers):  # 修改检查条件，确保单元格数量与表头数量一致
+                        if len(cells) != len(headers):  # modify check condition to ensure cell count matches header count
                             continue
                         
                         row_data = {}
@@ -684,6 +674,12 @@ class ASXProcessor:
             # Create DataFrame
             if all_data:
                 df = pd.DataFrame(all_data)
+                
+                # Remove all columns named EMPTY_COLUMN_PLACEHOLDER
+                empty_cols = [col for col in df.columns if col == "EMPTY_COLUMN_PLACEHOLDER"]
+                if empty_cols:
+                    df = df.drop(columns=empty_cols)
+                
                 return df
             else:
                 # Check if there's a "No Data Available" message
@@ -780,12 +776,6 @@ class ASXProcessor:
         dt = datetime.strptime(date_str, "%y%m%d")
         # Weekday returns 0-6 (Monday-Sunday), so 5 and 6 are weekend
         return dt.weekday() >= 5
-    
-    def _is_holiday(self, date_str):
-        """Check if the date is an Australian holiday."""
-        dt = datetime.strptime(date_str, "%y%m%d")
-        mm_dd = dt.strftime("%m-%d")
-        return mm_dd in AUSTRALIAN_HOLIDAYS
 
 
 def validate_date_format(date_str):
