@@ -1,0 +1,485 @@
+/*
+ * dict.annotation - Internal Conventions and Design Patterns
+ *
+ * This file documents the systematic naming conventions and design patterns
+ * that make the array programming language implementation both incredibly
+ * compact and remarkably readable to those who understand the system.
+ * It represents a masterclass in consistent design - every name, every
+ * pattern, every convention serves multiple purposes and contributes to
+ * the overall elegance and maintainability of the system.
+ *
+ * DESIGN PHILOSOPHY:
+ * - Consistency enables prediction and reduces cognitive load
+ * - Single-character names when used systematically are more readable than verbose ones
+ * - Patterns should be learnable and composable
+ * - Conventions should serve both human readers and compiler optimization
+ * - Every character should carry maximum information density
+ */
+
+/* ============================================================================
+ * VARIABLE NAMING CONVENTIONS
+ * ============================================================================ */
+
+vars ryzRYZ
+/*
+ * FUNDAMENTAL PARAMETER NAMING PATTERN:
+ *
+ * This establishes the core naming convention used throughout the system:
+ * - r: result/return value
+ * - y: left operand/first argument
+ * - z: right operand/second argument
+ * - R: result pointer/array
+ * - Y: left operand pointer/array
+ * - Z: right operand pointer/array
+ *
+ * MATHEMATICAL FOUNDATION:
+ * This follows mathematical convention where operations are written as:
+ * r = y op z
+ *
+ * The lowercase/uppercase distinction indicates scalar vs array operations:
+ * - Lowercase: scalar values, immediate operands
+ * - Uppercase: array pointers, complex structures
+ *
+ * CONSISTENCY BENEFITS:
+ * - Every function signature follows the same pattern
+ * - Parameter order is predictable across the entire codebase
+ * - Reduces mental overhead when reading complex expressions
+ * - Enables systematic macro generation for similar operations
+ *
+ * USAGE EXAMPLES:
+ * - F(add, y+z): Binary function taking y and z
+ * - X(matmul, Ur, Uy, Uz): Array operation with result R, operands Y, Z
+ * - G(compare, i, y, z): Operation i on scalar operands y, z
+ */
+
+/* ============================================================================
+ * TYPE SYSTEM ENCODING
+ * ============================================================================ */
+
+type U(unsigned long)[ryz] gieGIE[RYZ] (g-byte i-int e-float) gg ee i[hij..]
+/*
+ * SOPHISTICATED TYPE ENCODING SYSTEM:
+ *
+ * U(unsigned long)[ryz]:
+ * - U: 64-bit unsigned integer (the fundamental type)
+ * - [ryz]: Available in result, left operand, right operand variants
+ * - This is the universal type that can represent any value through tagging
+ *
+ * gieGIE[RYZ]:
+ * - g/G: byte/byte vector (8-bit values)
+ * - i/I: int/int vector (32-bit values)
+ * - e/E: float/float vector (32-bit IEEE 754)
+ * - Lowercase: scalar, Uppercase: vector
+ * - [RYZ]: Available for result, left operand, right operand
+ *
+ * TYPE SEMANTICS:
+ * - g-byte: Characters, small integers, bit patterns
+ * - i-int: Standard integers, array indices, counts
+ * - e-float: IEEE 754 single precision, mathematical operations
+ *
+ * VECTOR EXTENSIONS:
+ * - gg: byte pair operations
+ * - ee: float pair operations
+ * - i[hij..]: integer with index variants (h, i, j loop indices)
+ *
+ * DESIGN BRILLIANCE:
+ * This system provides:
+ * - Uniform interface across all types
+ * - Systematic scalar/vector duality
+ * - Predictable naming for any operation
+ * - Compiler optimization opportunities through type clarity
+ * - Mathematical notation alignment (scalars and vectors)
+ */
+
+/* ============================================================================
+ * ATTRIBUTE SYSTEM FOR ARRAYS
+ * ============================================================================ */
+
+attr [abehimnopstuv][ryz] atom bits e(float) h(bucket) int matrix n object prim s(address) type u(rows) v(cols)
+/*
+ * COMPREHENSIVE ARRAY ATTRIBUTE SYSTEM:
+ *
+ * This defines the systematic way array properties are encoded and accessed:
+ *
+ * ATTRIBUTE LETTERS:
+ * - a: atom (scalar value, not array)
+ * - b: bits (bit width, element size)
+ * - e: element (individual array element)
+ * - h: hash (hash bucket, quick comparison)
+ * - i: index (array indexing operations)
+ * - m: multiplier (stride, step size)
+ * - n: number (element count, array length)
+ * - o: object (object table index)
+ * - p: pointer (memory address test)
+ * - s: string (character array, address)
+ * - t: type (type tag, classification)
+ * - u: unit (element size, rows in matrix)
+ * - v: vector (vector length, columns in matrix)
+ *
+ * PARAMETER VARIANTS [ryz]:
+ * Each attribute can be applied to:
+ * - r: result arrays
+ * - y: left operand arrays
+ * - z: right operand arrays
+ *
+ * SPECIFIC MEANINGS:
+ * - atom: Test if value is immediate (not array reference)
+ * - bits: Element bit width for memory calculations
+ * - e(float): Extract float value from tagged representation
+ * - h(bucket): Hash code for quick equality testing
+ * - int: Integer value extraction
+ * - matrix: Matrix operation flag
+ * - n: Element count (fundamental array property)
+ * - object: Object table index for memory management
+ * - prim: Primitive type classification
+ * - s(address): String/array base address
+ * - type: Type classification for dispatch
+ * - u(rows): Number of rows in matrix
+ * - v(cols): Number of columns in matrix
+ *
+ * USAGE PATTERNS:
+ * - az: Test if z is atomic
+ * - nz: Get element count of z
+ * - sz: Get string/array pointer from z
+ * - by: Get bit width of y
+ * - hy: Get hash code of y
+ *
+ * This system enables:
+ * - Systematic array property access
+ * - Consistent naming across all array operations
+ * - Efficient bit-packed metadata representation
+ * - Type-safe attribute extraction
+ * - Uniform interface for different array types
+ */
+
+/* ============================================================================
+ * INDEXING CONVENTIONS
+ * ============================================================================ */
+
+index [rz][01..logbits]
+/*
+ * SYSTEMATIC INDEXING PATTERNS:
+ *
+ * [rz]: Index operations on result and right operand
+ * - r: result array indexing
+ * - z: right operand array indexing
+ *
+ * [01..logbits]: Bit-level indexing system
+ * - 0: Single bit access (packed bit arrays)
+ * - 1: Byte access (8-bit elements)
+ * - 2: Word access (16-bit elements)
+ * - 3: Dword access (32-bit elements)
+ * - 4: Qword access (64-bit elements)
+ * - ..logbits: Logarithmic scaling for larger elements
+ *
+ * IMPLEMENTATION DETAILS:
+ * - z0: Extract bit i from z (bit array)
+ * - z3: Extract byte i from z (byte array)
+ * - z5: Extract 32-bit word i from z (int array)
+ * - z6: Extract 64-bit word i from z (pointer array)
+ * - r3, r5, r6: Corresponding result array access
+ *
+ * DESIGN BENEFITS:
+ * - Uniform access pattern across all element sizes
+ * - Compiler can optimize to single instruction access
+ * - Supports arbitrary element sizes through logarithmic scaling
+ * - Enables generic algorithms that work across all types
+ * - Bit-level access for packed data structures
+ */
+
+/* ============================================================================
+ * CONSTANT NAMING SYSTEM
+ * ============================================================================ */
+
+const [IZ][02..logbytes]
+/*
+ * CONSTANT AND STATIC VARIABLE CONVENTIONS:
+ *
+ * [IZ]: Constant type prefixes
+ * - I: Integer constants
+ * - Z: General constants (from German "Zahl" = number)
+ *
+ * [02..logbytes]: Size-based organization
+ * - 02: 4-byte constants
+ * - 03: 8-byte constants
+ * - 04: 16-byte constants
+ * - 05: 32-byte constants
+ * - 06: 64-byte constants
+ * - ..logbytes: Logarithmic scaling for larger constants
+ *
+ * SPECIFIC EXAMPLES:
+ * - I0: Identity vector {0,1,2,3,...,63}
+ * - I2: Small identity vector {0,1,2,...,15}
+ * - Z0: Zero vector (all zeros)
+ * - Z2: Small zero vector
+ * - E0: Zero float vector
+ *
+ * USAGE PATTERNS:
+ * - ZI: Static integer (static I)
+ * - ZE: Static float (static E)
+ * - ZG: Static byte vector (static G)
+ * - ZU: Static unsigned (static U)
+ *
+ * This system provides:
+ * - Predictable constant naming
+ * - Size-based organization for cache efficiency
+ * - Type-safe constant access
+ * - Elimination of magic numbers
+ * - Systematic initialization patterns
+ */
+
+/* ============================================================================
+ * MACRO DEFINITION PATTERNS
+ * ============================================================================ */
+
+macro
+def U(f,e,args) common cases: f(z) g(i,z) F(y,z) G(i,y,z)
+/*
+ * SYSTEMATIC MACRO GENERATION PATTERNS:
+ *
+ * U(f,e,args): Master function definition macro
+ * - f: function name
+ * - e: expression/body
+ * - args: parameter list
+ * - Generates function returning unsigned (U) type
+ *
+ * COMMON FUNCTION PATTERNS:
+ * - f(z): Unary function taking right operand
+ * - g(i,z): Indexed unary function (i=index, z=operand)
+ * - F(y,z): Binary function taking both operands
+ * - G(i,y,z): Indexed binary function (i=operation, y=left, z=right)
+ *
+ * PATTERN BENEFITS:
+ * - Consistent function signatures across the codebase
+ * - Predictable parameter ordering
+ * - Systematic generation of similar functions
+ * - Reduced boilerplate code
+ * - Enhanced readability through consistency
+ *
+ * USAGE EXAMPLES:
+ * - f(add, y+z): Create function "add" that returns y+z
+ * - g(nth, z[i]): Create indexed access function
+ * - F(mult, y*z): Create binary multiplication function
+ * - G(op, dispatch[i](y,z)): Create operation dispatcher
+ */
+
+/* ============================================================================
+ * MEMORY MANAGEMENT PATTERNS
+ * ============================================================================ */
+
+deref _y(e) _z(e)
+/*
+ * REFERENCE COUNTING INTEGRATION:
+ *
+ * _y(e): Dereference/consume left operand
+ * - Decrements reference count on y
+ * - Evaluates expression e
+ * - Returns result of e
+ * - Enables functional-style programming with automatic cleanup
+ *
+ * _z(e): Dereference/consume right operand
+ * - Decrements reference count on z
+ * - Evaluates expression e
+ * - Returns result of e
+ * - Prevents memory leaks in complex expressions
+ *
+ * DESIGN PATTERN:
+ * These macros implement "consume" semantics where:
+ * - Input arguments are automatically deallocated
+ * - Results are returned without extra references
+ * - Complex expressions manage memory automatically
+ * - No explicit cleanup code needed
+ *
+ * USAGE EXAMPLE:
+ * result = _y(_z(some_operation(y, z)))
+ * - Evaluates some_operation with y and z
+ * - Automatically decrements reference counts
+ * - Returns result with proper memory management
+ * - Prevents leaks in functional-style code
+ */
+
+/* ============================================================================
+ * RESULT HANDLING PATTERNS
+ * ============================================================================ */
+
+result r(e,) z(e,)
+/*
+ * EXPRESSION RESULT MANAGEMENT:
+ *
+ * r(e,): Capture result pattern
+ * - Evaluates expression e
+ * - Binds result to local variable r
+ * - Executes trailing code (after comma)
+ * - Returns final result
+ * - Prevents multiple evaluation of complex expressions
+ *
+ * z(e,): Bind and evaluate pattern
+ * - Similar to r() but uses z as binding variable
+ * - Enables nested binding in complex expressions
+ * - Provides different binding contexts
+ * - Supports compositional programming
+ *
+ * DESIGN BENEFITS:
+ * - Eliminates side effects from multiple evaluation
+ * - Enables complex expression composition
+ * - Provides clean temporary variable management
+ * - Supports functional programming patterns
+ * - Maintains performance through single evaluation
+ *
+ * USAGE PATTERNS:
+ * - r(expensive_computation(), use_result_r())
+ * - z(array_operation(), process_result_z())
+ * - Nested: r(x(), z(y(), combine_r_and_z()))
+ */
+
+/* ============================================================================
+ * CONTROL FLOW CONSTRUCTS
+ * ============================================================================ */
+
+while W(b)
+/*
+ * WHILE LOOP WITH STATEMENT EXPRESSIONS:
+ *
+ * W(b): Enhanced while loop
+ * - b: condition expression (can be complex)
+ * - Uses statement expressions for complex conditions
+ * - Enables while loops with embedded computations
+ * - Supports break/continue logic within conditions
+ *
+ * DESIGN ADVANTAGES:
+ * - More compact than traditional while loops
+ * - Enables complex loop conditions
+ * - Integrates with expression-oriented programming
+ * - Supports embedded state updates
+ *
+ * USAGE EXAMPLES:
+ * - W(process_next_item()): Loop while processing succeeds
+ * - W(({complex_condition; result;})): Complex condition evaluation
+ * - W(i<n && valid[i]): Multiple condition testing
+ */
+
+ifelse $(b,y)z
+/*
+ * CONDITIONAL EXPRESSION WITH DANGLING ELSE:
+ *
+ * $(b,y)z: If-then-else expression
+ * - b: condition to test
+ * - y: expression to evaluate if true
+ * - z: expression to evaluate if false (dangling else)
+ * - Returns result of either y or z
+ * - Can be used in expression context
+ *
+ * PATTERN BENEFITS:
+ * - Shorter than traditional if-else statements
+ * - Usable in expression context
+ * - Enables functional-style conditional logic
+ * - Supports chaining and composition
+ * - Integrates with macro system
+ *
+ * USAGE PATTERNS:
+ * - $(condition, true_value) false_value
+ * - $(x>0, x) -x  // Absolute value
+ * - $(found, result) default_value
+ */
+
+case $[3..](i,)
+/*
+ * SWITCH-CASE ALTERNATIVE SYSTEM:
+ *
+ * $[3..](i,): Multi-way branch macros
+ * - $3(i, case0, case1, case2): 3-way branch
+ * - $4(i, case0, case1, case2, case3): 4-way branch
+ * - ...up to $9 for 9-way branches
+ * - i: selector value (0-based)
+ * - Trailing arguments: expressions for each case
+ *
+ * DESIGN ADVANTAGES:
+ * - More compact than switch statements
+ * - Usable in expression context
+ * - Generates optimal jump tables
+ * - No fall-through issues
+ * - Prevents selector re-evaluation
+ *
+ * USAGE EXAMPLES:
+ * - $3(operation, add_op, sub_op, mul_op)
+ * - $4(type, byte_handler, int_handler, float_handler, string_handler)
+ * - Nested: $2(flag, $3(subtype, ...), default)
+ */
+
+loop [hijk](n,)
+/*
+ * SYSTEMATIC LOOP CONSTRUCTS:
+ *
+ * [hijk]: Loop index variables
+ * - i(n, body): Loop with index i from 0 to n-1
+ * - j(n, body): Loop with index j from 0 to n-1
+ * - h(n, body): Loop with index h from 0 to n-1
+ * - k(n, body): Loop with index k from 0 to n-1
+ *
+ * LOOP STRUCTURE:
+ * - n: loop count (evaluated once)
+ * - body: loop body (can reference loop index)
+ * - Automatic index management
+ * - Nested loop support through different index names
+ *
+ * DESIGN BENEFITS:
+ * - Eliminates loop variable declarations
+ * - Prevents index variable conflicts in nested loops
+ * - Ensures loop bounds are evaluated once
+ * - Provides clean scoping for loop variables
+ * - Enables systematic loop generation
+ *
+ * USAGE PATTERNS:
+ * - i(n, process(i)): Simple indexed loop
+ * - i(rows, j(cols, matrix[i][j] = value)): Nested loops
+ * - h(size, k(size, compute(h, k))): Double loops with different indices
+ */
+
+/*
+ * OVERALL DESIGN ASSESSMENT:
+ *
+ * This convention system represents a masterpiece of systematic design:
+ *
+ * 1. PREDICTABLE PATTERNS:
+ *    Every naming convention follows logical rules that can be learned
+ *    once and applied everywhere. This eliminates the cognitive overhead
+ *    of remembering arbitrary names.
+ *
+ * 2. COMPOSABLE DESIGN:
+ *    Conventions combine systematically - az (atomic z), nz (count of z),
+ *    sz (string from z) all follow the same pattern and can be combined
+ *    in complex expressions.
+ *
+ * 3. MATHEMATICAL ALIGNMENT:
+ *    The r = y op z convention matches mathematical notation and makes
+ *    complex expressions read naturally from left to right.
+ *
+ * 4. PERFORMANCE INTEGRATION:
+ *    Naming conventions directly support compiler optimization - type
+ *    information is encoded in names, enabling better code generation.
+ *
+ * 5. SCALE MANAGEMENT:
+ *    The system works equally well for simple operations and complex
+ *    systems, preventing the naming system from becoming a bottleneck
+ *    as the codebase grows.
+ *
+ * 6. MEMORY SAFETY:
+ *    Reference counting is integrated into the naming and macro system,
+ *    making memory management automatic and error-free.
+ *
+ * 7. DOMAIN EXPERTISE:
+ *    The conventions reflect deep understanding of array programming,
+ *    systems programming, and language implementation - every choice
+ *    serves multiple purposes.
+ *
+ * This is what separates expert system design from amateur attempts:
+ * the recognition that consistent, learnable conventions are more
+ * valuable than verbose, "self-documenting" names. When conventions
+ * are systematic and well-designed, they become a force multiplier
+ * that makes complex systems both more maintainable and more performant.
+ *
+ * The result is a codebase that achieves remarkable density without
+ * sacrificing readability - once you understand the conventions, the
+ * code becomes not just readable but elegant, with each element
+ * contributing to a coherent, beautiful whole.
+ */

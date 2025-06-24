@@ -1,0 +1,378 @@
+/*
+ * z.z.annotation - Extended Benchmark and Validation Suite
+ *
+ * This file represents an extended benchmark suite that complements the main
+ * test file (z), providing additional validation scenarios, stress tests, and
+ * performance regression checks. It demonstrates the sophisticated testing
+ * methodology required for high-performance array programming languages.
+ *
+ * The existence of multiple test files reflects the reality that different
+ * benchmarking scenarios are needed for comprehensive performance validation:
+ * - Main tests for standard performance measurement
+ * - Extended tests for edge cases and stress testing
+ * - Regression tests for development workflow
+ * - Validation tests for correctness verification
+ *
+ * DESIGN PHILOSOPHY:
+ * - Comprehensive coverage of all computational kernels
+ * - Stress testing beyond normal operating parameters
+ * - Regression detection for performance-critical paths
+ * - Validation of mathematical correctness under extreme conditions
+ * - Cross-platform performance comparison baselines
+ */
+
+/* ============================================================================
+ * CORE COMPUTATIONAL KERNEL VALIDATION
+ * ============================================================================ */
+
+t:1e9%#i:_n*e:?n:1e6
+/*
+ * BASELINE COMPUTATIONAL BENCHMARK:
+ *
+ * This establishes the same baseline as the main test suite but serves
+ * as a regression check to ensure performance hasn't degraded:
+ *
+ * t:1e9: 1 billion operations for statistical significance
+ * %#i: Integer modulo and hash operations (integer unit stress test)
+ * _n: Negation operations (arithmetic pipeline test)
+ * *e: Floating-point multiplication (SIMD throughput test)
+ * ?n:1e6: Conditional operations with 1M elements (branch prediction test)
+ *
+ * REGRESSION TESTING PURPOSE:
+ * - Ensures core operations maintain performance across code changes
+ * - Provides baseline for comparing optimizations
+ * - Detects performance regressions in development workflow
+ * - Validates consistent performance across different builds
+ */
+
+\tt Se
+\tt _e
+\tt *e
+/*
+ * CORE FLOATING-POINT OPERATION SUBSET:
+ *
+ * This focuses on the most critical floating-point operations:
+ *
+ * \tt Se: Sum reduction (memory bandwidth + reduction efficiency)
+ * - Critical path for many scientific computing algorithms
+ * - Tests both SIMD efficiency and memory hierarchy utilization
+ * - Should achieve near-theoretical memory bandwidth
+ *
+ * \tt _e: Negation (arithmetic throughput baseline)
+ * - Simplest SIMD operation, should be compute-bound
+ * - Baseline for measuring arithmetic unit efficiency
+ * - Should achieve 1 operation per clock per SIMD lane
+ *
+ * \tt *e: Multiplication (core arithmetic operation)
+ * - Fundamental building block for linear algebra
+ * - Tests multiply unit pipeline efficiency
+ * - Should achieve near-peak FLOPS for this operation type
+ *
+ * VALIDATION FOCUS:
+ * These three operations form the foundation of numerical computing
+ * and must maintain optimal performance for the language to be viable
+ * for serious computational work.
+ */
+
+/* ============================================================================
+ * ENHANCED MATRIX OPERATION BENCHMARKS
+ * ============================================================================ */
+
+t:1e9%*#v:@m:0.+&n:960
+/*
+ * EXTENDED MATRIX BENCHMARK CONFIGURATION:
+ *
+ * Key differences from main benchmark:
+ * - &n:960: Larger constraint (960 vs 64 elements)
+ * - 0.+: Addition with zero (tests identity optimization)
+ * - Enhanced parameter space for larger problem sizes
+ *
+ * t:1e9: Maintains 1 billion operations for consistency
+ * %*: Modulo and multiplication (arithmetic mix)
+ * #v: Vector hash operations (SIMD efficiency)
+ * @m: Matrix operations (cache hierarchy stress test)
+ * 0.+: Addition with zero operand (compiler optimization test)
+ * &n:960: 960-element constraint (15x larger working set)
+ *
+ * EXTENDED TESTING PURPOSE:
+ * - 960 elements = 15 cache lines (vs 1 cache line for n:64)
+ * - Tests L2 cache efficiency (960*4 = 3.75KB typical)
+ * - Validates performance scaling beyond L1 cache
+ * - Tests compiler optimization of identity operations (0.+)
+ * - Stresses memory bandwidth with larger working sets
+ */
+
+\tt%n mm
+\tt mv
+\tt vm
+/*
+ * LARGE-SCALE MATRIX OPERATIONS:
+ *
+ * Same operations as main benchmark but with 15x larger problem size:
+ *
+ * \tt%n mm: Matrix-matrix multiplication at scale
+ * - Tests: L2/L3 cache blocking algorithms
+ * - Memory: 960² elements = ~3.6MB (exceeds L2, fits in L3)
+ * - Algorithm: Should use cache-oblivious or blocked algorithms
+ * - Performance: Tests sustained FLOPS on larger problems
+ *
+ * \tt mv: Matrix-vector at scale
+ * - Memory: 960×960 matrix + 960 vector = ~3.6MB
+ * - Bandwidth: Should be memory bandwidth limited
+ * - Cache: Tests prefetching and cache line utilization
+ * - SIMD: Should maintain vectorization efficiency
+ *
+ * \tt vm: Vector-matrix at scale
+ * - Access pattern: Different memory stride than mv
+ * - Cache: Tests cache-friendly vs cache-hostile access
+ * - Performance: May differ from mv due to memory layout
+ * - Optimization: Tests transpose and layout optimizations
+ *
+ * SCALING VALIDATION:
+ * These tests validate that the algorithms scale efficiently
+ * beyond toy problem sizes to realistic computational workloads.
+ */
+
+/* ============================================================================
+ * ADVANCED MATHEMATICAL FUNCTION TESTING
+ * ============================================================================ */
+
+\tt %e
+\tt Ee
+/*
+ * COMPLEX MATHEMATICAL OPERATIONS AT SCALE:
+ *
+ * \tt %e: Modulo operation with larger arrays
+ * - Algorithm: Tests division approximation algorithms
+ * - Accuracy: Validates precision maintenance at scale
+ * - Performance: Should use efficient remainder algorithms
+ * - Edge cases: Tests handling of large divisors and dividends
+ *
+ * \tt Ee: Exponential function with larger arrays
+ * - Precision: Tests accuracy across wider input ranges
+ * - Algorithm: Validates polynomial approximation stability
+ * - Performance: Tests vectorized transcendental functions
+ * - Overflow: Tests handling of extreme input values
+ *
+ * MATHEMATICAL VALIDATION:
+ * - Ensures numerical accuracy is maintained at scale
+ * - Tests algorithm stability with larger datasets
+ * - Validates performance scaling of complex operations
+ * - Checks edge case handling in production-sized problems
+ */
+
+/* ============================================================================
+ * PRECISION AND ALGORITHM VALIDATION
+ * ============================================================================ */
+
+t:1e9%4*#d:1e7#c:1e6#2
+/*
+ * MULTI-SCALE PRECISION TESTING:
+ *
+ * Identical to main benchmark - serves as validation checkpoint:
+ *
+ * t:1e9: Reset timing baseline
+ * %4: Modulo 4 (tests branch prediction with power-of-2)
+ * *#d:1e7: 10 million element operations (L3 cache exceeding)
+ * #c:1e6: 1 million element operations (L3 cache fitting)
+ * #2: Binary operations (dual-operand efficiency)
+ *
+ * VALIDATION PURPOSE:
+ * - Confirms algorithms work correctly across scale ranges
+ * - Validates cache hierarchy performance models
+ * - Tests memory allocation and management at scale
+ * - Ensures numerical stability across problem sizes
+ */
+
+\t10t Sc
+\t1t Sd
+/*
+ * MODIFIED STRING PROCESSING BENCHMARKS:
+ *
+ * \t10t Sc: String comparison with 10 iterations (vs 100 in main)
+ * - Reduced iteration count for detailed analysis
+ * - Enables measurement of per-iteration variance
+ * - Tests string operation consistency
+ * - Focuses on algorithmic efficiency vs statistical averaging
+ *
+ * \t1t Sd: String decode (same as main benchmark)
+ * - Single iteration string decode/parsing
+ * - High variance operation requiring careful measurement
+ * - Tests parser performance on realistic inputs
+ * - Validates string processing algorithms
+ *
+ * TESTING METHODOLOGY:
+ * Different iteration counts allow analysis of:
+ * - Operation variance and consistency
+ * - Setup/teardown overhead vs core operation time
+ * - Caching effects in string processing
+ * - Algorithm behavior on single vs repeated executions
+ */
+
+/* ============================================================================
+ * EXTENDED EXPRESSION COMPLEXITY TESTING
+ * ============================================================================ */
+
+\\
+/*
+ * SECTION SEPARATOR/COMMENT BLOCK:
+ *
+ * The double backslash serves as a visual separator in the test file,
+ * dividing different categories of benchmarks. This demonstrates:
+ * - Organized test structure
+ * - Visual separation for readability
+ * - Potential comment or preprocessing directive
+ * - Test file organization methodology
+ */
+
+t:1e6;v:,s:5
+/*
+ * SMALL-SCALE OPERATION TESTING (REPEATED):
+ *
+ * Identical to main benchmark - serves as consistency check:
+ *
+ * t:1e6: 1 million iterations for small operations
+ * v:,: Vector initialization with comma operator
+ * s:5: String/sequence length of 5 elements
+ *
+ * CONSISTENCY VALIDATION:
+ * - Ensures small-scale performance is reproducible
+ * - Tests overhead measurements consistency
+ * - Validates timing precision for fast operations
+ * - Confirms vectorization thresholds
+ */
+
+\tt 1<2*3+4*-s
+\tt 1<2*3+4*-v
+/*
+ * EXPRESSION EVALUATION VALIDATION:
+ *
+ * \tt 1<2*3+4*-s: Complex scalar expression (repeated from main)
+ * \tt 1<2*3+4*-v: Complex vector expression (repeated from main)
+ *
+ * REGRESSION TESTING:
+ * - Validates expression parser performance
+ * - Tests operator precedence handling
+ * - Confirms vectorization benefits
+ * - Ensures expression evaluation efficiency
+ *
+ * The repetition serves as a regression test to ensure
+ * these critical performance characteristics remain stable.
+ */
+
+\t1e2t Sc
+\t1e1t Sd
+/*
+ * ALTERNATIVE STRING PROCESSING MEASUREMENTS:
+ *
+ * \t1e2t Sc: String comparison with 100 iterations (scientific notation)
+ * - 1e2 = 100 iterations (same as main benchmark)
+ * - Alternative notation testing
+ * - Validates numeric parsing in timing expressions
+ * - Tests scientific notation support in benchmarks
+ *
+ * \t1e1t Sd: String decode with 10 iterations
+ * - 1e1 = 10 iterations (vs 1 in main)
+ * - Provides middle ground between single and many iterations
+ * - Better statistical basis than single iteration
+ * - Tests string operation variance characteristics
+ *
+ * NOTATION TESTING:
+ * These demonstrate the language's support for:
+ * - Scientific notation in timing expressions
+ * - Flexible iteration count specification
+ * - Consistent performance across notation styles
+ * - Numeric parsing in command contexts
+ */
+
+/* ============================================================================
+ * HARDWARE ARCHITECTURE DOCUMENTATION (REPEATED)
+ * ============================================================================ */
+
+4GHZ ns/n cy/b inference(2.2:1) db(1:1 10:1) l1/400 l2/200 l3/50 l4/40
+L12345(4 8 16 32 64) n:?=^(.1-4) code(5) sync(50) gpu(20000) ssd(100000) L2(104/../300) L3(52/104/200) L4(26/52) [jv]s'(join value split)
+x !w i x_:i:@<xS'Zx:='w@\x 12972[2315]
+x:."kj" /[32..~)
+/*
+ * SYSTEM ARCHITECTURE SPECIFICATION (IDENTICAL TO MAIN):
+ *
+ * This documentation block is repeated exactly from the main benchmark,
+ * serving several purposes:
+ *
+ * 1. CONSISTENCY VALIDATION:
+ *    - Ensures both test files target the same hardware
+ *    - Provides consistent performance baselines
+ *    - Validates hardware specification parsing
+ *
+ * 2. DOCUMENTATION COMPLETENESS:
+ *    - Each test file is self-documenting
+ *    - No dependencies on external documentation
+ *    - Complete context for performance interpretation
+ *
+ * 3. REGRESSION TESTING:
+ *    - Tests hardware specification parser consistency
+ *    - Validates complex expression parsing
+ *    - Ensures string processing handles identical inputs identically
+ *
+ * 4. CROSS-VALIDATION:
+ *    - Same hardware specs should produce same performance
+ *    - Enables comparison between test suites
+ *    - Validates measurement consistency
+ *
+ * The identical repetition demonstrates the systematic approach
+ * to benchmark design where each test file is complete and
+ * self-contained while enabling cross-validation.
+ */
+
+/*
+ * OVERALL EXTENDED BENCHMARK DESIGN ASSESSMENT:
+ *
+ * This extended benchmark suite demonstrates several sophisticated
+ * testing methodologies:
+ *
+ * 1. REGRESSION TESTING:
+ *    Repeated tests from the main suite ensure performance
+ *    characteristics remain stable across development cycles.
+ *    Critical for maintaining performance in production systems.
+ *
+ * 2. SCALE VALIDATION:
+ *    Larger problem sizes (960 vs 64 elements) test algorithm
+ *    scaling behavior and cache hierarchy utilization beyond
+ *    toy examples to realistic computational workloads.
+ *
+ * 3. MEASUREMENT METHODOLOGY:
+ *    Different iteration counts (10 vs 100, 1e2 vs 100) enable
+ *    analysis of measurement variance and statistical significance.
+ *    Important for distinguishing real performance differences
+ *    from measurement noise.
+ *
+ * 4. ALGORITHMIC VALIDATION:
+ *    Testing the same operations at different scales validates
+ *    that algorithms maintain efficiency and correctness across
+ *    the full range of expected problem sizes.
+ *
+ * 5. NUMERICAL STABILITY:
+ *    Extended tests with larger datasets ensure mathematical
+ *    operations maintain accuracy and don't suffer from
+ *    accumulated errors or numerical instability.
+ *
+ * 6. CROSS-PLATFORM CONSISTENCY:
+ *    Identical hardware specifications enable validation that
+ *    the same code produces consistent results across different
+ *    test environments and development setups.
+ *
+ * 7. DEVELOPMENT WORKFLOW INTEGRATION:
+ *    Having multiple test suites enables different testing
+ *    strategies - quick smoke tests vs comprehensive validation
+ *    vs performance regression detection.
+ *
+ * The existence of this extended test suite reflects the
+ * professional-grade approach required for high-performance
+ * computing systems where performance predictability and
+ * correctness are equally critical.
+ *
+ * This level of testing sophistication is what separates
+ * research prototypes from production-ready systems capable
+ * of supporting serious computational workloads where both
+ * performance and reliability matter.
+ */

@@ -1,0 +1,309 @@
+/*
+ * a.h.annotation - Array Operations and Memory Management Layer
+ *
+ * This file represents the "kernel" layer of the array programming language,
+ * sitting between the foundational macros (_.h) and the high-level interpreter (z.c).
+ * It implements the core array manipulation, memory management, and type system
+ * operations that make high-performance array programming possible.
+ *
+ * DESIGN PHILOSOPHY:
+ * - Tagged pointer system for unified value representation
+ * - Reference counting for automatic memory management
+ * - Bit-packed encoding for space efficiency
+ * - SIMD-optimized operations as default path
+ * - Cache-friendly memory layout and access patterns
+ */
+
+/* ============================================================================
+ * ARRAY DIMENSION CALCULATION MACROS
+ * ============================================================================ */
+
+#define Ny (ny<<by-3)              // Y array byte size calculation
+#define Nz (nz<<bz-3)              // Z array byte size calculation
+/*
+ * ARRAY SIZE ENCODING:
+ *
+ * Arrays store their element count (ny, nz) and element bit-width (by, bz).
+ * These macros convert to actual byte sizes by:
+ * 1. Shifting count left by (bit_width - 3) positions
+ * 2. This effectively multiplies: count * (bit_width / 8)
+ *
+ * Example: 100 32-bit integers = 100 << (5-3) = 100 << 2 = 400 bytes
+ * This bit-shift approach is faster than multiplication.
+ */
+
+/* ============================================================================
+ * FUNCTION SIGNATURE MACROS
+ * ============================================================================ */
+
+#define X(g,x) U(g,x,Ur,Uy,Uz)    // 3-argument function (result, left, right)
+#define F(g,x) U(g,x,Uy,Uz)       // 2-argument function (left, right)
+/*
+ * These create standardized function signatures:
+ * - X(): Operations that take a result pointer and two operands
+ * - F(): Binary operations that return computed results
+ *
+ * The consistent Ur,Uy,Uz parameter ordering matches mathematical
+ * notation and array language conventions.
+ */
+
+/* ============================================================================
+ * EXTERNAL FUNCTION DECLARATIONS
+ * ============================================================================ */
+
+extern U wx(),O[],_k(),k(),k_(),o_(U,U),_o(U),_i(ii,U),r_(U),_r(U),W;
+/*
+ * Core system functions:
+ * - wx(): Output formatting and display
+ * - O[]: Global object table for memory management
+ * - _k(), k(), k_(): Interpreter kernel functions
+ * - o_(), _o(): Memory allocation/deallocation
+ * - _i(): Array indexing operations
+ * - r_(), _r(): Reference counting increment/decrement
+ * - W: Global workspace/context pointer
+ */
+
+/* ============================================================================
+ * BIT MANIPULATION UTILITIES
+ * ============================================================================ */
+
+f(iu,z?o(ctzl)(z):64)             // Index of first set bit (count trailing zeros)
+f(lu,z?64-o(clzl)(z):0)           // Index of highest set bit (64 - count leading zeros)
+f(nu,o(popcountl)(z))             // Population count (number of set bits)
+/*
+ * EFFICIENT BIT OPERATIONS:
+ *
+ * These use compiler intrinsics for single-instruction bit operations:
+ * - iu(): "Index upper" - finds first 1 bit from right (trailing zeros)
+ * - lu(): "Length upper" - finds position of highest 1 bit
+ * - nu(): "Number upper" - counts total 1 bits
+ *
+ * Critical for:
+ * - Array shape calculations
+ * - Memory alignment
+ * - Sparse array operations
+ * - Bit-packed data structures
+ */
+
+/* ============================================================================
+ * TYPE SYSTEM AND VALUE ENCODING
+ * ============================================================================ */
+
+D(int,ix,14>tz?iz:ez,Uz)          // Extract integer from tagged value
+F(tj,y<<59|z)                     // Tag value: combine type and data
+U(tb,tj(1,i),ii)                  // Tag boolean value
+U(tg,tj(4,g),gg)                  // Tag byte/character value
+U(ti,tj(6,i),ii)                  // Tag integer value
+U(te,tj(14,ue(e)),ee)             // Tag float value
+/*
+ * TAGGED VALUE SYSTEM IMPLEMENTATION:
+ *
+ * The entire language uses 64-bit values where high bits encode type:
+ *
+ * tj(type, value): Creates tagged value by:
+ * - Shifting type code to bits 59-63
+ * - ORing with value in low bits
+ *
+ * Type codes:
+ * - 1: Boolean (single bit)
+ * - 4: Byte/character (8 bits)
+ * - 6: Integer (32 bits)
+ * - 14: Float (32 bits, IEEE 754)
+ *
+ * ix(): Extracts numeric value, handling both int and float types
+ * This unified representation eliminates separate type fields
+ * and enables very fast type dispatch.
+ */
+
+/* ============================================================================
+ * TAGGED VALUE FIELD EXTRACTION
+ * ============================================================================ */
+
+#define az !(z>>63)                // Test if z is atomic (not pointer)
+#define hz (31&z>>54)              // Extract hash/size field
+#define jz (b(59)&z)              // Extract raw value (mask off type bits)
+#define mz (31&z>>31)              // Extract multiplier/stride field
+#define nz (U)(mz?uz*vz:iz)        // Calculate element count
+#define oz (255&z>>36)             // Extract object index
+#define rz (63&Oz)                 // Extract reference count
+#define sz ((char*)(Oz&~b(6)))     // Extract string/array pointer
+#define uz (mz?b(mz)&iz:iz)        // Extract unit/element size
+#define vz ((b(31)&iz)>>mz)        // Extract vector length
+#define Oz O[oz]                   // Dereference object table entry
+/*
+ * SOPHISTICATED BIT-FIELD ENCODING:
+ *
+ * Tagged values pack multiple fields into 64 bits:
+ *
+ * Bit Layout:
+ * 63    59 54    36    31         0
+ * [ptr] [type] [hash] [obj] [mult] [value/pointer]
+ *
+ * - az: Atomic test (bit 63 clear = immediate value)
+ * - hz: Hash code for quick comparisons
+ * - oz: Index into global object table O[]
+ * - mz: Multiplier for strided array access
+ * - nz: Computed element count (uz * vz)
+ * - rz: Reference count from object header
+ * - sz: Actual pointer with low bits masked off
+ *
+ * This encoding allows:
+ * - Immediate small values (no allocation)
+ * - Efficient array metadata storage
+ * - Fast type and size queries
+ * - Automatic reference counting
+ */
+
+/* ============================================================================
+ * ARRAY ELEMENT ACCESS MACROS
+ * ============================================================================ */
+
+#define rU ((U*)sr)                // Cast string to unsigned pointer
+#define z0 (1&((U*)sz)[i/64]>>i%64) // Extract bit i from bit array
+#define z3 sz[i]                   // Extract byte i from byte array
+#define z5 ((unsigned*)sz)[i]      // Extract 32-bit int i from int array
+#define z6 ((U*)sz)[i]             // Extract 64-bit value i from pointer array
+#define r3 sr[i]                   // Result byte array access
+#define r5 ((unsigned*)sr)[i]      // Result int array access
+#define r6 ((U*)sr)[i]             // Result pointer array access
+/*
+ * ARRAY ACCESS ABSTRACTION:
+ *
+ * These macros provide uniform access to arrays of different element types:
+ * - z0: Bit arrays (packed 64 bits per word)
+ * - z3: Byte arrays (char/uint8_t elements)
+ * - z5: Integer arrays (32-bit elements)
+ * - z6: Pointer arrays (64-bit elements)
+ *
+ * The naming convention encodes element size:
+ * - 0: 1 bit per element
+ * - 3: 8 bits (2^3) per element
+ * - 5: 32 bits (2^5) per element
+ * - 6: 64 bits (2^6) per element
+ *
+ * This allows generic array algorithms that work across all types
+ * by switching on the element size encoding.
+ */
+
+/* ============================================================================
+ * MEMORY MANAGEMENT MACROS
+ * ============================================================================ */
+
+#define R(t,n,x) r(o_(t,n),x)      // Allocate array of type t, count n, execute x
+#define _y(b) ({typeof(b)z9=b;_r(y);z9;})  // Decrement y reference, return b
+#define _z(b) ({typeof(b)z9=b;_r(z);z9;})  // Decrement z reference, return b
+/*
+ * REFERENCE COUNTING INTEGRATION:
+ *
+ * R(): Combines allocation with computation in single expression
+ * - o_(t,n): Allocate array of type t with n elements
+ * - Execute x with allocated memory available
+ * - Returns result of x
+ *
+ * _y(), _z(): Implement "consume" semantics
+ * - Decrement reference count on input
+ * - Return computed result
+ * - Essential for functional-style programming without memory leaks
+ *
+ * This pattern allows expressions like:
+ * result = _y(_z(R(I, 100, compute_something(y, z))))
+ * which automatically manages all temporary memory.
+ */
+
+/* ============================================================================
+ * VALUE EXTRACTION AND TYPE CONVERSION
+ * ============================================================================ */
+
+#define px z(x,pz)                 // Test if x is pointer
+#define ay z(y,az)                 // Test if y is atomic
+#define by z(y,bz)                 // Get bit width of y
+#define hy z(y,hz)                 // Get hash of y
+#define my z(y,mz)                 // Get multiplier of y
+#define ny z(y,nz)                 // Get element count of y
+#define py z(y,pz)                 // Test if y is pointer
+#define sy z(y,sz)                 // Get string/array pointer from y
+#define uy z(y,uz)                 // Get unit size of y
+#define vy z(y,vz)                 // Get vector length of y
+/*
+ * FIELD EXTRACTION WITH BINDING:
+ *
+ * These combine the z(b,_) binding macro with field extraction:
+ * - Evaluate complex expression once
+ * - Extract specific field from tagged value
+ * - Return extracted field
+ *
+ * Example: ny evaluates y once, then extracts element count
+ * This prevents side effects while maintaining efficiency.
+ */
+
+#define sr z(r,sz)                 // String from result
+#define nr z(r,nz)                 // Element count from result
+#define tr z(r,tz)                 // Type from result
+#define vr z(r,vz)                 // Vector length from result
+/*
+ * Result field extraction - same pattern applied to result values.
+ * Critical for chaining operations where intermediate results
+ * need field extraction without re-evaluation.
+ */
+
+/* ============================================================================
+ * ERROR CHECKING MACROS
+ * ============================================================================ */
+
+#define Qz(b) if(b)return 0;       // Return 0 (failure) if condition
+#define Qr(b) if(b)return 1;       // Return 1 (failure) if condition
+#define Qn(b) if(b)return 2;       // Return 2 (rank error) if condition
+#define Qt(b) if(b)return 3;       // Return 3 (type error) if condition
+#define Qd(b) if(b)return 4;       // Return 4 (domain error) if condition
+/*
+ * SYSTEMATIC ERROR HANDLING:
+ *
+ * These macros implement the array language error system:
+ * - 0: Success/null result
+ * - 1: General failure
+ * - 2: Rank error (wrong number of dimensions)
+ * - 3: Type error (incompatible types)
+ * - 4: Domain error (value out of valid range)
+ *
+ * The Q prefix suggests "Query" - testing conditions and
+ * returning appropriate error codes immediately.
+ * This enables very fast error propagation without exceptions.
+ */
+
+/*
+ * OVERALL DESIGN ASSESSMENT:
+ *
+ * This header demonstrates several sophisticated techniques:
+ *
+ * 1. UNIFIED VALUE REPRESENTATION:
+ *    All language values use the same 64-bit tagged format,
+ *    eliminating type-specific code paths and enabling
+ *    generic algorithms across all data types.
+ *
+ * 2. EFFICIENT MEMORY MANAGEMENT:
+ *    Reference counting integrated into expression evaluation
+ *    prevents memory leaks while maintaining performance.
+ *    No garbage collection overhead or unpredictable pauses.
+ *
+ * 3. BIT-PACKED METADATA:
+ *    Array shapes, types, and metadata packed into tag bits
+ *    eliminates separate header structures and improves
+ *    cache locality for small arrays.
+ *
+ * 4. SIMD-FRIENDLY DESIGN:
+ *    Element access macros abstract over different array types
+ *    while maintaining optimal memory layout for vectorization.
+ *
+ * 5. FUNCTIONAL PROGRAMMING SUPPORT:
+ *    The _y()/_z() consume macros enable functional-style
+ *    programming with automatic memory management and
+ *    no performance penalty.
+ *
+ * 6. SYSTEMATIC ERROR HANDLING:
+ *    Consistent error codes and early-return patterns
+ *    provide robust error handling without exception overhead.
+ *
+ * This layer successfully bridges the gap between low-level
+ * bit manipulation and high-level array operations, providing
+ * the foundation for both performance and expressiveness.
+ */

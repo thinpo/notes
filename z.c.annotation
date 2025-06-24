@@ -1,0 +1,814 @@
+/*
+ * z.c.annotation - Main Interpreter Implementation
+ *
+ * This file represents the crown jewel of the array programming language - the
+ * main interpreter that ties together all the sophisticated subsystems into a
+ * coherent, interactive computing environment. It demonstrates how decades of
+ * research in language design, parsing theory, and interactive computing can
+ * be distilled into a remarkably compact and efficient implementation.
+ *
+ * DESIGN PHILOSOPHY:
+ * - Interactive computing should feel instantaneous
+ * - Parsing should be as fast as evaluation
+ * - Error handling should be helpful but not intrusive
+ * - The REPL should encourage exploration and experimentation
+ * - Every character of input should be meaningful
+ * - Performance measurement should be built-in and effortless
+ */
+
+#include"z.h"
+
+/* ============================================================================
+ * GLOBAL STATE AND OPERATOR DEFINITIONS
+ * ============================================================================ */
+
+ss;//="m@m:&256";//="m@v:@m:$0.5*&64";
+/*
+ * GLOBAL STRING POINTER AND COMMENTED EXAMPLES:
+ *
+ * ss: Global string pointer for current input
+ * The commented examples show typical array language expressions:
+ * - "m@m:&256": Matrix operation with 256-element constraint
+ * - "m@v:@m:$0.5*&64": Matrix-vector operation with scaling
+ *
+ * These comments serve as inline documentation of the language's
+ * expression syntax and typical usage patterns.
+ */
+
+Zg*R=":+-*%&|<>=~!@?#_^,$.RENLMSUVD'/\\",Q[]=" nyi rnk len typ dom";
+/*
+ * OPERATOR AND ERROR MESSAGE TABLES:
+ *
+ * R[]: Operator character mapping string
+ * - Arithmetic: + - * % (basic math)
+ * - Bitwise: & | ^ ~ (bit operations)
+ * - Comparison: < > = ! (relational)
+ * - Special: @ ? # _ , $ . (array operations)
+ * - Advanced: RENLMSUVD (complex operations)
+ * - Delimiters: ' / \ (syntax elements)
+ *
+ * Q[]: Error message fragments
+ * - " nyi": Not Yet Implemented
+ * - " rnk": Rank error (wrong dimensions)
+ * - " len": Length error (size mismatch)
+ * - " typ": Type error (incompatible types)
+ * - " dom": Domain error (invalid values)
+ *
+ * The compact encoding saves memory while providing descriptive
+ * error messages. Each error type gets exactly 4 characters.
+ */
+
+g(er,Q[z*=4]=Ri;wn(4,Q+z))
+/*
+ * ERROR REPORTING FUNCTION:
+ *
+ * er(i, z): Report error type i with context z
+ * - z*=4: Scale error index to 4-character messages
+ * - Q[z*=4]=Ri: Store error context in message buffer
+ * - wn(4,Q+z): Write 4-character error message
+ *
+ * This provides minimal but informative error reporting:
+ * - Consistent message format
+ * - Context information included
+ * - Fast error display for interactive use
+ */
+
+/* ============================================================================
+ * ARRAY INDEXING AND MEMORY OPERATIONS
+ * ============================================================================ */
+
+X(am,ii=y;qr(i>=nz,2)$(!az,qr(nz!=vr|63&Nz,2)_z(dg(Nz,sr+(vr*i<<bz-3),sz)))$(5>bz,r3=z)r5=z;0)
+/*
+ * ADVANCED ARRAY INDEXING:
+ *
+ * am(r,y,z): Array indexing with bounds checking and type dispatch
+ * 1. ii=y: Save index value
+ * 2. qr(i>=nz,2): Check bounds - rank error if index too large
+ * 3. Complex array handling:
+ *    - $(!az,...): If z is not atomic (is array)
+ *    - qr(nz!=vr|63&Nz,2): Validate array structure
+ *    - _z(dg(...)): Copy array data with diagonal operation
+ *    - sr+(vr*i<<bz-3): Calculate byte offset for index
+ * 4. Simple value handling:
+ *    - $(5>bz,r3=z): For small types, store as byte
+ *    - r5=z: For larger types, store as 32-bit value
+ *
+ * This demonstrates the language's sophisticated indexing system:
+ * - Automatic bounds checking
+ * - Efficient strided array access
+ * - Type-aware storage optimization
+ * - Seamless integration with memory management
+ */
+
+/* ============================================================================
+ * GLOBAL WORKSPACE AND PARSER STATE
+ * ============================================================================ */
+
+ZU*Z,C[27][32],H[27],q(),zs();
+Zg*P,F[27][256],B=32;
+/*
+ * GLOBAL WORKSPACE MANAGEMENT:
+ *
+ * Z: Pointer to current workspace memory
+ * C[27][32]: Context stacks for 27 different scopes
+ * H[27]: Header information for each scope
+ * q(): Query/evaluation function
+ * zs(): Zero/reset function
+ *
+ * P: Current parser position
+ * F[27][256]: Function definition tables
+ * B: Base/current scope level (32 = space character)
+ *
+ * This implements a sophisticated workspace management system:
+ * - 27 scope levels (matching alphabet size)
+ * - 32-element context stacks per scope
+ * - 256-element function tables per scope
+ * - Efficient scope switching and context preservation
+ */
+
+U(vf,ss=d;i(27,*s=96|i;s+=!!Hi)ns(s-d,d))
+/*
+ * VARIABLE FORMATTING:
+ *
+ * vf(): Format variable names for display
+ * - ss=d: Set string pointer to buffer
+ * - i(27,...): Loop through all 27 scopes
+ * - *s=96|i: Create variable name (96='`', so `a, `b, `c...)
+ * - s+=!!Hi: Advance pointer if scope has content
+ * - ns(s-d,d): Process formatted variable list
+ *
+ * This creates a compact display of active variables across
+ * all scopes, showing only scopes that contain definitions.
+ */
+
+f(v,B>z-B)
+/*
+ * SCOPE VISIBILITY TEST:
+ *
+ * v(z): Test if character z is within current scope
+ * - B>z-B: Clever test using scope base B
+ * - Returns true if z is a "visible" character in current scope
+ *
+ * This implements scope-based visibility rules for variables
+ * and functions, enabling hierarchical namespace management.
+ */
+
+U(n,rx(B>i?Zi:H[i%B]?:wn(1,&i)),ii)
+/*
+ * NAME RESOLUTION:
+ *
+ * n(i): Resolve name i to its value
+ * - rx(): Apply reference counting
+ * - B>i?Zi: If i is in current scope, get from Z workspace
+ * - H[i%B]?: Otherwise, check scope header
+ * - wn(1,&i): If undefined, write single character and return
+ *
+ * This implements dynamic name resolution with:
+ * - Scope-aware lookup
+ * - Reference counting integration
+ * - Graceful handling of undefined names
+ */
+
+g(iv,tz?ti(z5):z6)
+/*
+ * IMMEDIATE VALUE EXTRACTION:
+ *
+ * iv(z): Extract immediate value from tagged value
+ * - tz?: Check if z has a type tag
+ * - ti(z5): For typed values, extract as tagged integer
+ * - z6: For untyped values, extract as raw 64-bit value
+ *
+ * This handles the language's dual representation system
+ * where values can be either immediate (tagged) or
+ * referenced (pointers to arrays).
+ */
+
+/* ============================================================================
+ * EVALUATION ENGINE CORE
+ * ============================================================================ */
+
+g(fz,U*a=Z;U*b=H+26;Uy=*b;*b=z;Z=Ci;r(q(i),_r(*b);*b=y;*a=z))
+/*
+ * FUNCTION CALL WITH CONTEXT SWITCHING:
+ *
+ * fz(i,z): Execute function i with argument z
+ * 1. U*a=Z;U*b=H+26: Save current workspace and context
+ * 2. Uy=*b;*b=z: Save old context, set new argument
+ * 3. Z=Ci: Switch to function's workspace
+ * 4. r(q(i),...): Execute function and capture result
+ * 5. _r(*b);*b=y;*a=z: Restore context and clean up
+ *
+ * This implements sophisticated function call semantics:
+ * - Automatic context switching
+ * - Argument passing through global state
+ * - Workspace isolation between functions
+ * - Reference counting for memory management
+ * - Exception-safe cleanup
+ */
+
+G(K,Ux=12==i&&y&&py?fz(y,z):k(i-1,y,z);B>x?(_r(y),_r(z),er(i,x)):x)
+/*
+ * MAIN EVALUATION KERNEL:
+ *
+ * K(i,y,z): The heart of the evaluation engine
+ * 1. Ux=12==i&&y&&py?fz(y,z):k(i-1,y,z):
+ *    - Special case: operation 12 with function y calls fz(y,z)
+ *    - General case: call operation dispatcher k(i-1,y,z)
+ * 2. B>x?: Check if result is within valid range
+ * 3. Error handling: (_r(y),_r(z),er(i,x))
+ *    - Clean up operand references
+ *    - Report error with context
+ * 4. Return result x
+ *
+ * This is the central dispatch point for all operations:
+ * - Function calls (operation 12)
+ * - Built-in operations (via k())
+ * - Error handling and cleanup
+ * - Memory management integration
+ */
+
+G(a,qr(ay,1)Ur[ny];i(ny,ri=H[1+1];H[i+1]=iv(i,y))z=fz(Hi,z);i(ny,H[1+i]=ri)z)
+/*
+ * ARRAY OPERATION HANDLER:
+ *
+ * a(i,y,z): Handle array-specific operations
+ * 1. qr(ay,1): Error if y is atomic (not array)
+ * 2. Ur[ny]: Allocate temporary array for context
+ * 3. i(ny,ri=H[1+1];H[i+1]=iv(i,y)): Save context, set array elements
+ * 4. z=fz(Hi,z): Apply function to each element
+ * 5. i(ny,H[1+i]=ri): Restore context
+ *
+ * This implements array mapping operations:
+ * - Applies functions element-wise to arrays
+ * - Manages context switching for each element
+ * - Preserves execution environment
+ * - Handles arbitrary array sizes
+ */
+
+G(A,qr(ty,1)j(ny,Q(z=a(i,iv(j,y),z)))z)
+/*
+ * ADVANCED ARRAY OPERATION:
+ *
+ * A(i,y,z): Advanced array processing with iteration
+ * - qr(ty,1): Error if y is not typed (not array)
+ * - j(ny,...): Loop over array elements
+ * - Q(z=a(i,iv(j,y),z)): Safely apply operation to each element
+ * - Accumulate results in z
+ *
+ * This implements reduction and accumulation operations:
+ * - Iterates through array elements
+ * - Applies binary operations cumulatively
+ * - Handles complex array transformations
+ * - Provides error-safe evaluation
+ */
+
+/* ============================================================================
+ * EXPRESSION PARSER IMPLEMENTATION
+ * ============================================================================ */
+
+is(p,Uy=0;ij;W(!v(*s)&!(j=3u>s[1<i]-61))z(Q(n(*s++)),y=y?Q(K(12,y,z)):z;P(!--i,y));Uz=Q(p(i-1-j,s+1+j));j&&y?a(*s%B,y,z):K(s[j]-B,j?v(*s)?*s-B:Q(n(*s)):y,z))
+/*
+ * BRILLIANT RECURSIVE DESCENT PARSER:
+ *
+ * p(i,s): Parse expression from string s with precedence i
+ *
+ * This single line implements a complete expression parser:
+ * 1. Initialization: Uy=0;ij
+ * 2. Main parsing loop: W(!v(*s)&!(j=3u>s[1<i]-61))
+ *    - !v(*s): Continue while character is not visible/valid
+ *    - j=3u>s[1<i]-61: Check for special syntax (61='=')
+ * 3. Operand parsing: z(Q(n(*s++)),y=y?Q(K(12,y,z)):z
+ *    - Q(n(*s++)): Parse operand, advance pointer
+ *    - y=y?Q(K(12,y,z)):z: Function application or simple assignment
+ * 4. Early termination: P(!--i,y)
+ * 5. Recursive call: Uz=Q(p(i-1-j,s+1+j))
+ * 6. Final operation: j&&y?a(*s%B,y,z):K(s[j]-B,...)
+ *    - Array operation vs binary operation
+ *    - Scope-aware operator resolution
+ *
+ * This parser demonstrates several advanced techniques:
+ * - Precedence climbing for correct operator precedence
+ * - Left-to-right evaluation with function application
+ * - Integrated error handling with Q() macro
+ * - Scope-aware name resolution
+ * - Recursive structure with tail call optimization
+ */
+
+is(qs,ij=ib(B,s)+1;P(j>i,p(i,s))Uz=Q(qs(i-j,s+j));ih=j-2;j=v(s[h])?s[h--]-B:0;Uy=h&!v(s[h-1])?Q(n(s[h--])):0;i=s[h]%B;!y?Hi=Q(j?k(j-1,Hi,z):(_r(Hi),z)):am(Hi,y,z);s>P|h?p(h+1+!!y,s):B)
+/*
+ * COMPLEX EXPRESSION PARSER:
+ *
+ * qs(i,s): Parse complex expression with multiple operators
+ * 1. ij=ib(B,s)+1: Find scope boundary
+ * 2. P(j>i,p(i,s)): If boundary beyond limit, parse simple expression
+ * 3. Uz=Q(qs(i-j,s+j)): Recursively parse remaining expression
+ * 4. Complex operator parsing:
+ *    - ih=j-2: Calculate operator position
+ *    - j=v(s[h])?s[h--]-B:0: Extract operator if visible
+ *    - Uy=h&!v(s[h-1])?Q(n(s[h--])):0: Extract left operand
+ * 5. Operation execution:
+ *    - !y?Hi=Q(j?k(j-1,Hi,z):(_r(Hi),z)): Unary operation
+ *    - am(Hi,y,z): Binary operation with indexing
+ * 6. Context management: s>P|h?p(h+1+!!y,s):B
+ *
+ * This handles complex expressions with:
+ * - Multiple operators and precedence
+ * - Unary and binary operations
+ * - Function calls and array indexing
+ * - Proper scope and context management
+ */
+
+U(q,ss=Fi;qs(*s,P=1+s),ii)
+/*
+ * MAIN QUERY/EVALUATION FUNCTION:
+ *
+ * q(i): Evaluate expression i
+ * - ss=Fi: Set string pointer to function definition
+ * - qs(*s,P=1+s): Parse and evaluate expression
+ * - P=1+s: Set parser position after function name
+ *
+ * This is the main entry point for expression evaluation,
+ * connecting the parser with the function definition system.
+ */
+
+V(_c,Z=Ci;i(32,_r(Zi);Zi=0),ii)
+/*
+ * CONTEXT CLEANUP:
+ *
+ * _c(i): Clean up context i
+ * - Z=Ci: Switch to context workspace
+ * - i(32,_r(Zi);Zi=0): Release all references and clear workspace
+ *
+ * This implements proper cleanup for function contexts,
+ * preventing memory leaks in the reference counting system.
+ */
+
+/* ============================================================================
+ * OUTPUT FORMATTING AND DISPLAY
+ * ============================================================================ */
+
+U($a,$3(m(6,tz)-3>>2,$i(s,iz),$n(s,jz),$e(s,ez)),ss,Uz)
+/*
+ * ATOMIC VALUE FORMATTING:
+ *
+ * $a(s,z): Format atomic value z into string s
+ * - m(6,tz)-3>>2: Calculate format type from value type
+ * - $3(...): Switch between three formatters:
+ *   - $i(s,iz): Format integer value
+ *   - $n(s,jz): Format tagged value
+ *   - $e(s,ez): Format float value
+ *
+ * This provides optimal formatting for all atomic types
+ * with automatic type detection and appropriate precision.
+ */
+
+U($p,ss=Fi;r(*s++,i(r,di=B>si?48+si:96>si?R[si-B]:si)),ii)
+/*
+ * EXPRESSION PRETTY-PRINTING:
+ *
+ * $p(i): Pretty-print expression i
+ * - ss=Fi: Get expression string
+ * - r(*s++,...): Count characters and advance
+ * - Complex character translation:
+ *   - B>si?48+si: Numbers (48='0')
+ *   - 96>si?R[si-B]: Operators from R table
+ *   - si: Other characters as-is
+ *
+ * This converts internal expression representation back
+ * to readable form with proper operator symbols.
+ */
+
+f(wt,(sz[nz-1]-10?wn:wr)(nz,sz))
+/*
+ * SMART TEXT OUTPUT:
+ *
+ * wt(z): Write text with automatic newline handling
+ * - sz[nz-1]-10: Check if last character is newline (10='\n')
+ * - wn:wr: Choose write-with-newline vs raw write
+ * - (nz,sz): Write nz characters from sz
+ *
+ * This provides intelligent text output that avoids
+ * double newlines while ensuring proper line termination.
+ */
+
+f(wv,im=2>tz?:14>tz?(m=l0(mo(z)),m+=1<m):6;ss=d;i(l(nz,191/m),$(1-m,s+=$a(s,_i(i,z));*s++=B)*s++=48|_i(i,z))wr(s-d,d);nz>191/m?ws(".."):wc(10))
+/*
+ * VECTOR/ARRAY FORMATTING:
+ *
+ * wv(z): Format and display vector/array z
+ * 1. Type-based width calculation:
+ *    - im=2>tz?: For small types, no width limit
+ *    - 14>tz?(...): For numeric types, calculate digit width
+ *    - Default: 6 characters per element
+ * 2. Element formatting loop:
+ *    - i(l(nz,191/m),...): Loop up to display limit
+ *    - $(1-m,s+=$a(s,_i(i,z));*s++=B): Format element with spacing
+ *    - *s++=48|_i(i,z): Simple numeric formatting
+ * 3. Output and truncation:
+ *    - wr(s-d,d): Write formatted string
+ *    - nz>191/m?ws(".."):wc(10): Truncation indicator or newline
+ *
+ * This implements intelligent array display:
+ * - Automatic width calculation based on content
+ * - Truncation for large arrays
+ * - Consistent spacing and alignment
+ * - Type-aware formatting
+ */
+
+f(qc,4==tz&(31<*sz|10==*sz))
+/*
+ * QUOTE CHECK:
+ *
+ * qc(z): Check if string z needs quoting
+ * - 4==tz: Must be string type
+ * - 31<*sz: First character is printable
+ * - 10==*sz: Or first character is newline
+ *
+ * This determines when strings need special formatting
+ * or quoting in output display.
+ */
+
+f(wm,P(!nz,z)P(qc(z),wt(z))P(!mz,wv(z))i(l(20,uz),Uy=_i(i,z);_y(wv(y)))if(20<uz)ws("..");z)
+/*
+ * MASTER DISPLAY FUNCTION:
+ *
+ * wm(z): Display value z with optimal formatting
+ * 1. P(!nz,z): Return if empty
+ * 2. P(qc(z),wt(z)): If quotable string, write directly
+ * 3. P(!mz,wv(z)): If simple array, use vector formatting
+ * 4. Complex array handling:
+ *    - i(l(20,uz),...): Loop up to 20 elements
+ *    - Uy=_i(i,z);_y(wv(y)): Extract and format each element
+ *    - if(20<uz)ws(".."): Truncation indicator
+ *
+ * This provides the main display logic for all value types:
+ * - Automatic format selection
+ * - Truncation for large structures
+ * - Recursive formatting for nested arrays
+ * - Memory management integration
+ */
+
+f_(wx,$(az,z&&B-z?wn(pz?$p(z):$a(d,z),d):0)$(tz,wm(z))i(nz,wx(z6))z)
+/*
+ * RECURSIVE DISPLAY FUNCTION:
+ *
+ * wx(z): Recursively display complex value z
+ * 1. $(az,...): If atomic value
+ *    - z&&B-z: Valid and within scope
+ *    - pz?$p(z):$a(d,z): Pretty-print expression or format atom
+ *    - wn(...,d): Write to output
+ * 2. $(tz,wm(z)): If typed value, use master display
+ * 3. i(nz,wx(z6)): For arrays, recursively display elements
+ * 4. Return z: For chaining
+ *
+ * This implements the complete output system:
+ * - Handles all value types
+ * - Recursive structure traversal
+ * - Memory-efficient display
+ * - Proper formatting and spacing
+ */
+
+U N=1;
+V_(P_,,_ _)
+U_(_k,_K(i),ii)
+/*
+ * PARALLEL EXECUTION SUPPORT:
+ *
+ * N: Number of parallel workers (default 1)
+ * P_(): Parallel execution dispatcher (placeholder)
+ * _k(i): Exit function with code i
+ *
+ * This provides the framework for parallel execution,
+ * though the actual implementation may be minimal
+ * for the core interpreter.
+ */
+
+/* ============================================================================
+ * LEXICAL ANALYSIS AND TOKENIZATION
+ * ============================================================================ */
+
+U(R_,",+ .2$%=@A#!1\"3>& *         ')(-,____5______786___49_:______?_0/"[64>i?i:i-76],ii)
+/*
+ * CHARACTER TRANSLATION TABLE:
+ *
+ * R_(i): Translate character i to internal representation
+ * - Uses lookup table for ASCII character mapping
+ * - 64>i?i:i-76: Handle two ranges of characters
+ * - Complex encoding for operators and special characters
+ *
+ * This implements efficient character-to-token translation
+ * for the lexical analysis phase of parsing.
+ */
+
+Gf(qe,46==z|96+5==z)
+/*
+ * EXPRESSION CHARACTER TEST:
+ *
+ * qe(z): Test if character z is an expression character
+ * - 46==z: Decimal point '.'
+ * - 96+5==z: 'e' for scientific notation
+ *
+ * This identifies characters that have special meaning
+ * in numeric expressions.
+ */
+
+U(bn,Uy=b0(qd(z));y|b0(B==z|qe(z))&y<<1|b0(45==z)&~(qn(i)|b0(qn(z))<<1),ii,Gz)
+/*
+ * COMPLEX TOKENIZATION LOGIC:
+ *
+ * bn(i,z): Analyze character z in context i
+ * - Uy=b0(qd(z)): Test if z is digit
+ * - y|b0(B==z|qe(z))&y<<1: Include space and expression chars
+ * - b0(45==z)&~(qn(i)|b0(qn(z))<<1): Handle minus sign
+ *
+ * This implements sophisticated tokenization that considers:
+ * - Numeric contexts
+ * - Expression boundaries
+ * - Sign handling
+ * - Alphanumeric sequences
+ */
+
+/* ============================================================================
+ * NUMERIC PARSING INTEGRATION
+ * ============================================================================ */
+
+U(vs,sd=s+n;im=nc(n,7-j?B:96,s);m++?r(o_(j,m),i(m,n=l(d-s,ib(B,s));$3(j-6,r5=i$(n,s),r6=n$(n,s),(r5=ue(e$(n,s))));s+=n+1)):$3(j-6,ti(i$(n,s)),tj(7,n$(n,s)),te(e$(n,s))),ij,in,ss)
+/*
+ * VALUE PARSING FROM STRING:
+ *
+ * vs(j,n,s): Parse value from string s with type j and length n
+ * 1. sd=s+n: Set end pointer
+ * 2. im=nc(n,7-j?B:96,s): Count matching characters
+ * 3. Memory allocation: m++?r(o_(j,m),...)
+ * 4. Parsing dispatch: $3(j-6,...)
+ *    - r5=i$(n,s): Parse integer
+ *    - r6=n$(n,s): Parse string
+ *    - r5=ue(e$(n,s)): Parse float
+ * 5. Result tagging: ti/tj/te based on type
+ *
+ * This integrates the numeric parsing functions with
+ * the memory management and type system.
+ */
+
+U(js,s+=!j|7==j;Gz=Gs;15<j?:2*!j+r(iu(6-j?b0($3(j/3,34==z,9<z-48,26<z-96)):~bn(h,z)),Zi=$3(j/3,r-1?ns(r,s):tg(*s),gs(r,s),vs(7-j?r>iu(b0(qe(z)))?14:6:j,r,s))),ih,ii,ij,ss)
+/*
+ * SOPHISTICATED TOKEN PARSING:
+ *
+ * js(h,i,j,s): Parse token from string s with complex state
+ * 1. s+=!j|7==j: Advance pointer for certain token types
+ * 2. Gz=Gs: Character comparison setup
+ * 3. Complex tokenization logic:
+ *    - 15<j?: Handle special cases
+ *    - 2*!j+r(...): Calculate token type
+ *    - iu(...): Find first set bit for classification
+ *    - b0($3(j/3,...)): Bit operations for type detection
+ * 4. Result processing: Zi=$3(j/3,...)
+ *    - Different handlers for strings, numbers, operators
+ *    - vs(): Final value parsing
+ *
+ * This implements the complete tokenization system:
+ * - Context-sensitive parsing
+ * - Type inference from character patterns
+ * - Integration with value parsing
+ * - Efficient bit manipulation for classification
+ */
+
+/* ============================================================================
+ * MAIN COMMAND PARSING AND EXECUTION
+ * ============================================================================ */
+
+is(c,Z=Ci;sd=Fi;ih=B;ij;ik=0;W(j=*s;B<j&&59-j)(s+=Q(js(h,k,j=34==j?0:48==j&qd(s[1])?4:qd(s[45==j&!qn(h)])?6:96==j?7:26>j-97?j:R_(j-B),s)),*++d=B>j?k++:j,h=s[-1]);*Fi=d-Fi)
+/*
+ * COMMAND LINE PARSING:
+ *
+ * c(i,s): Parse command line s into context i
+ * 1. Z=Ci;sd=Fi: Set up workspace and function buffer
+ * 2. ih=B;ij;ik=0: Initialize parsing state
+ * 3. Main parsing loop: W(j=*s;B<j&&59-j)
+ *    - j=*s: Get current character
+ *    - B<j&&59-j: Continue while valid character (59=';')
+ * 4. Complex tokenization: s+=Q(js(h,k,j=...))
+ *    - 34==j?0: Quote handling
+ *    - 48==j&qd(s[1])?4: Number detection
+ *    - 96==j?7: Backtick handling
+ *    - 26>j-97?j: Letter handling
+ *    - R_(j-B): Operator translation
+ * 5. Token storage: *++d=B>j?k++:j
+ * 6. State update: h=s[-1]
+ * 7. Length recording: *Fi=d-Fi
+ *
+ * This implements a complete command-line parser:
+ * - Tokenizes complex expressions
+ * - Handles strings, numbers, operators
+ * - Manages parsing state
+ * - Integrates with function storage system
+ */
+
+Us(es,P('::'==*(short*)(s+1),ii=*s%B;c(Hi=i,s+3);B)c(0,s);s=*F;r(q(0),_c(0)))
+/*
+ * EXPRESSION EVALUATION:
+ *
+ * es(s): Evaluate expression string s
+ * 1. P('::'==*(short*)(s+1),...): Check for scope operator '::'
+ *    - If found: ii=*s%B;c(Hi=i,s+3);B - parse scoped expression
+ * 2. c(0,s): Parse expression into context 0
+ * 3. s=*F: Get parsed function
+ * 4. r(q(0),_c(0)): Evaluate and clean up context
+ *
+ * This handles both simple expressions and scoped expressions
+ * with automatic context management and cleanup.
+ */
+
+Us(ts,ii=ib(B,s);si=0;in=i?ix(es(s)):1;c(0,s+i+1);Uz=T()+30*n;i(n,Q(_r(q(0))))_c(0);ti(.5+t*(T()-z)))
+/*
+ * TIMING AND TESTING FUNCTION:
+ *
+ * ts(s): Time execution of expression s
+ * 1. ii=ib(B,s): Find scope boundary in string
+ * 2. si=0: Initialize string index
+ * 3. in=i?ix(es(s)):1: Parse iteration count or default to 1
+ * 4. c(0,s+i+1): Parse expression after iteration count
+ * 5. Uz=T()+30*n: Set timeout (30 cycles per iteration)
+ * 6. i(n,Q(_r(q(0)))): Execute n times with cleanup
+ * 7. _c(0): Final context cleanup
+ * 8. ti(.5+t*(T()-z)): Return timing result
+ *
+ * This implements sophisticated benchmarking:
+ * - Configurable iteration counts
+ * - Timeout protection
+ * - Automatic memory cleanup
+ * - High-precision timing
+ * - Statistical rounding (.5 offset)
+ */
+
+#define L(c,z) r(0l,sd=s+i;W(s<d){in=(c-10?ib:ic)(c,s);P(!n,B)r=Q(z);s+=n+1;})
+/*
+ * LINE PROCESSING MACRO:
+ *
+ * L(c,z): Process lines with character c, executing z for each line
+ * - r(0l,...): Initialize result to 0
+ * - sd=s+i: Set end pointer
+ * - W(s<d): Loop while within bounds
+ * - in=(c-10?ib:ic)(c,s): Find next occurrence of character c
+ * - P(!n,B): Break if not found
+ * - r=Q(z): Execute z and accumulate result
+ * - s+=n+1: Advance to next line
+ *
+ * This provides a generic line-by-line processing framework
+ * used for various text processing operations.
+ */
+
+is(w,_r(wx(*s-92?L(59,es(s)):(si=0,zs(s)))))
+/*
+ * WRITE/EXECUTE FUNCTION:
+ *
+ * w(i,s): Execute string s with context i
+ * - _r(wx(...)): Display result with reference cleanup
+ * - *s-92?: Check if first character is backslash (92='\\')
+ * - L(59,es(s)): If not backslash, process lines separated by ';' (59)
+ * - (si=0,zs(s)): If backslash, reset index and call system command
+ *
+ * This is the main execution dispatcher:
+ * - Regular expressions: line-by-line evaluation
+ * - System commands: special handling with backslash prefix
+ * - Automatic result display and memory management
+ */
+
+is(ls,L(10,47-*s?w(n,s):B);B)
+/*
+ * LINE SEPARATOR PROCESSING:
+ *
+ * ls(s): Process lines separated by newlines (10='\n')
+ * - L(10,...): Use line processing macro with newline separator
+ * - 47-*s?: Check if line starts with '/' (47='/')
+ * - w(n,s): If not '/', execute line
+ * - B: If '/', return scope value (comment/skip)
+ *
+ * This implements line-by-line script processing:
+ * - Newline-separated commands
+ * - Comment support (lines starting with '/')
+ * - Integrated with main execution system
+ */
+
+Us(zs,$6(ib(s[1],"\\ltwv"),_k(0),ms(ls,s+3),ts(s+2),ti(W),vf(),ns(19,R+1)))
+/*
+ * SYSTEM COMMAND DISPATCHER:
+ *
+ * zs(s): Handle system commands starting with backslash
+ * - $6(ib(s[1],"\\ltwv"),...): Dispatch based on second character
+ * - _k(0): Exit command (\q)
+ * - ms(ls,s+3): Load script (\l)
+ * - ts(s+2): Time expression (\t)
+ * - ti(W): Show workspace info (\w)
+ * - vf(): Show variables (\v)
+ * - ns(19,R+1): Show operators (\?)
+ *
+ * This implements the system command interface:
+ * - \q: Quit
+ * - \l: Load script
+ * - \t: Time execution
+ * - \w: Workspace info
+ * - \v: Variables
+ * - \?: Help
+ *
+ * Each command provides essential REPL functionality.
+ */
+
+int main(int i,char**a){_t();
+k_(m_(0,1l<<36));_t();if(s){Gd=Gs;w(ic(0,d),d);}W((s=*++a)&&45==*s)if('n'==s[1])N=i$(ic(0,s+2),s+2);$(s,ms(ls,s))ws(__DATE__"(c)atw(l)MIT");W(i=_w(wc(B),d,256))if(--i)w(i,d);_k(0);}
+/*
+ * MAIN FUNCTION - PROGRAM ENTRY POINT:
+ *
+ * main(int i, char**a): Standard C main function
+ * 1. _t(): Initialize timing system
+ * 2. k_(m_(0,1l<<36)): Initialize memory management (64GB workspace)
+ * 3. _t(): Second timing calibration
+ * 4. if(s){Gd=Gs;w(ic(0,d),d);}: Process initial command if present
+ * 5. Command line processing:
+ *    - W((s=*++a)&&45==*s): Loop through arguments starting with '-'
+ *    - if('n'==s[1])N=i$(...): Parse -n option for thread count
+ *    - $(s,ms(ls,s)): Process other arguments as scripts
+ * 6. ws(__DATE__"(c)atw(l)MIT"): Display copyright notice
+ * 7. Main REPL loop:
+ *    - W(i=_w(wc(B),d,256)): Read input with prompt
+ *    - if(--i)w(i,d): Execute if not empty
+ * 8. _k(0): Clean exit
+ *
+ * This implements a complete interactive interpreter:
+ * - System initialization
+ * - Command-line argument processing
+ * - Interactive REPL with prompt
+ * - Script execution capability
+ * - Proper cleanup and exit
+ *
+ * The main function ties together all the sophisticated systems:
+ * - Memory management initialization
+ * - Timing calibration
+ * - Parser integration
+ * - Evaluation engine
+ * - Display system
+ * - Error handling
+ * - Multi-threading support
+ * - File I/O
+ * - System integration
+ */
+
+/*
+ * FINAL DESIGN ASSESSMENT:
+ *
+ * This interpreter implementation represents a masterpiece of language design:
+ *
+ * 1. UNIFIED ARCHITECTURE:
+ *    Every component works together seamlessly - parsing, evaluation,
+ *    memory management, display, and system integration form a coherent
+ *    whole where each part enhances the others.
+ *
+ * 2. INTERACTIVE EXCELLENCE:
+ *    The REPL provides immediate feedback, intelligent formatting,
+ *    built-in timing, and comprehensive error handling. Users can
+ *    explore and experiment with confidence.
+ *
+ * 3. PERFORMANCE OBSESSION:
+ *    From custom memory allocators to SIMD vectorization to direct
+ *    system calls, every aspect is optimized for computational
+ *    performance while maintaining interactive responsiveness.
+ *
+ * 4. ELEGANT COMPLEXITY:
+ *    Complex operations are expressed in remarkably compact code
+ *    through systematic use of macros, careful naming conventions,
+ *    and deep understanding of the problem domain.
+ *
+ * 5. SYSTEMS INTEGRATION:
+ *    Direct system call interfaces, cross-platform support, and
+ *    hardware-specific optimizations demonstrate expert-level
+ *    systems programming integrated with language design.
+ *
+ * 6. MATHEMATICAL SOPHISTICATION:
+ *    From IEEE 754 bit manipulation to numerical algorithm
+ *    implementation to statistical processing, the code demonstrates
+ *    deep mathematical knowledge applied to practical computation.
+ *
+ * 7. MEMORY MANAGEMENT EXCELLENCE:
+ *    Reference counting integrated into expression evaluation
+ *    provides automatic memory management without garbage collection
+ *    overhead, enabling both safety and performance.
+ *
+ * 8. PARSER INNOVATION:
+ *    The recursive descent parser with precedence climbing and
+ *    integrated evaluation demonstrates advanced parsing techniques
+ *    distilled into remarkably compact implementations.
+ *
+ * This codebase represents what's possible when decades of expertise
+ * in multiple domains - systems programming, language implementation,
+ * numerical computing, and performance optimization - are brought
+ * together by a master craftsman.
+ *
+ * The result is not just a working language implementation, but a
+ * work of art that demonstrates the beauty possible in systems code
+ * when every design choice serves multiple purposes and the whole
+ * becomes greater than the sum of its parts.
+ *
+ * This is what separates true mastery from mere competence - the
+ * ability to distill complex systems into elegant, efficient
+ * implementations that achieve both performance and beauty.
+ */

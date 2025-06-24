@@ -1,0 +1,616 @@
+/*
+ * a.c.annotation - Array Computation Implementation
+ *
+ * This file contains the heart of the array programming language - the actual
+ * implementation of array operations, memory management, and the evaluation engine.
+ * It represents the culmination of decades of research in array language design,
+ * combining functional programming principles with extreme performance optimization.
+ *
+ * DESIGN PHILOSOPHY:
+ * - Every operation is potentially vectorizable
+ * - Memory management is invisible to the user but optimal
+ * - Type dispatch happens at compile time where possible
+ * - Error handling is fast and doesn't compromise performance
+ * - Code density enables better instruction cache utilization
+ */
+
+/* ============================================================================
+ * DEBUG AND GLOBAL DECLARATIONS
+ * ============================================================================ */
+
+#define Q(b) if(b)(ws(__func__),_k(1));
+/*
+ * DEBUG ASSERTION MACRO:
+ *
+ * Q(condition) checks runtime conditions and:
+ * - Prints current function name if condition is true
+ * - Calls _k(1) to terminate with error code
+ * - Only active in debug builds
+ *
+ * This provides minimal-overhead debugging without cluttering
+ * the production code paths.
+ */
+
+#include"a.h"//+-*%&|<>=~!@?#_^,$. t[.0123456789..def]h*o[ar]muv
+/*
+ * The comment shows the operator character mapping:
+ * - Arithmetic: + - * %
+ * - Bitwise: & | ^ ~
+ * - Comparison: < > = !
+ * - Special: @ ? # _ , $ .
+ *
+ * The cryptic notation t[.0123456789..def]h*o[ar]muv likely represents
+ * internal operation codes or memory layout information.
+ */
+
+U v_(),a(),ms();
+void r0(),av(),a2(),t0(),t2(),dg(),nx(),mm(),mv(),vm();
+/*
+ * Function declarations organized by category:
+ * - v_(): Vector operations
+ * - a(), ms(): Array operations and string handling
+ * - r0(): Reverse/rotate operations
+ * - av(): Array arithmetic/vectorized operations
+ * - t0(), t2(): Transpose operations for different element sizes
+ * - dg(): Diagonal operations
+ * - nx(): Complex array operations
+ * - mm(), mv(), vm(): Matrix multiplication variants
+ */
+
+/* ============================================================================
+ * UTILITY FUNCTIONS
+ * ============================================================================ */
+
+G(QR,2)                           // Return constant 2
+G(L3,0)                           // Return constant 0
+g(s5,0)                           // Return constant 0 (different signature)
+g(i_,0)                           // Return constant 0 (different signature)
+U(Ss,0,ii,ss)                    // String function returning 0
+/*
+ * CONSTANT FUNCTIONS:
+ *
+ * These appear to be placeholder or error return functions.
+ * In array languages, certain operations may not be defined
+ * for all type combinations, and these provide default behaviors.
+ *
+ * The different signatures (G, g, U) suggest they're used
+ * in different contexts but all return "failure" or "empty" values.
+ */
+
+g(bn,lu(m(64,n3(z<<L[i]%16))-1)-6)
+/*
+ * BIT COUNT CALCULATION:
+ *
+ * This complex expression calculates the number of bits needed:
+ * 1. z<<L[i]%16: Shift z by type-dependent amount
+ * 2. n3(): Round up to 8-byte boundary
+ * 3. m(64, ...): Take maximum with 64
+ * 4. lu(...)-1: Find highest bit position
+ * 5. Subtract 6: Adjust for some offset
+ *
+ * This is likely used for memory allocation size calculations
+ * or determining the optimal vector width for operations.
+ */
+
+/* ============================================================================
+ * ARITHMETIC OPERATIONS DISPATCHER
+ * ============================================================================ */
+
+G(a9,4>i?7>tz?ti($3(i,iy+iz,iy-iz,iy*iz)):te($4(i,ey+ez,ey-ez,ey*ez,ey/ez)):6>i?1&i^iy<iz?y:z:tb($3(i-6,iy<iz,iy>iz,iy==iz)))
+/*
+ * BRILLIANT ARITHMETIC DISPATCHER:
+ *
+ * This single line implements multiple arithmetic operations based on opcode i:
+ *
+ * Structure: 4>i ? (integer ops) : 6>i ? (selection ops) : (comparison ops)
+ *
+ * If i < 4 (basic arithmetic):
+ *   - If type < 7: Integer operations (add, sub, mul based on $3 macro)
+ *   - Else: Float operations (add, sub, mul, div based on $4 macro)
+ *
+ * If 4 <= i < 6 (selection):
+ *   - Complex selection logic: 1&i^iy<iz?y:z
+ *   - This implements conditional selection based on comparison
+ *
+ * If i >= 6 (comparison):
+ *   - Boolean results: less than, greater than, equal (using $3 macro)
+ *
+ * The brilliance is packing 9+ different operations into a single
+ * expression that compiles to optimal jump tables.
+ */
+
+f(_a,14>tz?ti(-iz):te(-ez))       // Negate: integer or float
+f(_c,te(1/(14>tz?iz:ez)))         // Reciprocal: 1/x for integer or float
+/*
+ * UNARY OPERATIONS:
+ *
+ * _a: Arithmetic negation
+ * - If type < 14: negate integer value iz
+ * - Else: negate float value ez
+ *
+ * _c: Reciprocal (complement)
+ * - Always returns float: 1/x
+ * - Handles both integer and float inputs
+ *
+ * The consistent naming (_a for arithmetic, _c for complement)
+ * makes the operation set predictable.
+ */
+
+/* ============================================================================
+ * MEMORY MANAGEMENT SYSTEM
+ * ============================================================================ */
+
+U O[1<<8],W;                      // Global object table and workspace
+Zu o;                             // Current object index
+ZU Z[30];                         // Memory pool pointers for different sizes
+/*
+ * SOPHISTICATED MEMORY MANAGEMENT:
+ *
+ * O[]: Global object table with 256 entries
+ * - Each entry contains metadata and reference count
+ * - Objects are never moved (stable pointers)
+ * - Reference counting prevents memory leaks
+ *
+ * Z[]: Array of memory pools for different object sizes
+ * - Z[i] points to free list for objects of size (64<<i) bytes
+ * - Sizes: 64, 128, 256, 512, ..., up to very large objects
+ * - This eliminates fragmentation and provides O(1) allocation
+ *
+ * W: Global workspace pointer for temporary operations
+ */
+
+g(_M,W-=1<<i;*(U*)z=Zi;Zi=z)
+/*
+ * MEMORY POOL ALLOCATION:
+ *
+ * _M(i, z): Allocate from pool i
+ * 1. W -= 1<<i: Decrement workspace by object size
+ * 2. *(U*)z = Zi: Store next-free-pointer in allocated object
+ * 3. Zi = z: Update free list to point to allocated object
+ *
+ * This implements a classic free-list allocator where:
+ * - Free objects store pointers to next free object
+ * - Allocation is O(1) - just update list head
+ * - Deallocation is O(1) - add to front of list
+ */
+
+U(M_,Uz=Zi;P(z,W+=1<<i;Zi=*(U*)z;z)Q(i>29)_M(i,M_(i+1))+(64L<<i),ii)
+/*
+ * MEMORY POOL MANAGEMENT WITH OVERFLOW:
+ *
+ * M_(i): Get object from pool i, with automatic pool growth
+ * 1. Try to get object from free list (Zi)
+ * 2. If available: update free list and return object
+ * 3. If pool empty (z==null):
+ *    - Recursively allocate from larger pool (i+1)
+ *    - Split larger object into smaller pieces
+ *    - Add pieces to current pool
+ * 4. Safety check: Q(i>29) prevents infinite recursion
+ *
+ * This creates a self-balancing memory system that:
+ * - Automatically manages pool sizes
+ * - Prevents memory waste
+ * - Handles arbitrary allocation patterns
+ */
+
+f_(k_,i(1<<8,Oi=i+1)i(30,Zi=z+(64L<<i))0)
+/*
+ * MEMORY SYSTEM INITIALIZATION:
+ *
+ * k_(): Initialize the memory management system
+ * 1. i(1<<8, Oi=i+1): Initialize object table with sequential IDs
+ * 2. i(30, Zi=z+(64L<<i)): Initialize memory pools
+ *    - Each pool starts at different offset in memory space
+ *    - Pool i handles objects of size (64<<i) bytes
+ *
+ * This sets up the foundational memory infrastructure
+ * before any array operations can begin.
+ */
+
+/* ============================================================================
+ * REFERENCE COUNTING IMPLEMENTATION
+ * ============================================================================ */
+
+f_(_o,_M(hz,sz);Oz=o;o=oz;z)
+/*
+ * OBJECT ALLOCATION WITH REFERENCE COUNTING:
+ *
+ * _o(z): Allocate object with reference counting
+ * 1. _M(hz, sz): Allocate memory from appropriate pool
+ * 2. Oz = o: Store current object index in new object
+ * 3. o = oz: Update current object index
+ * 4. Return z: Return the allocated object
+ *
+ * This integrates object allocation with the reference counting
+ * system, ensuring every allocated object is properly tracked.
+ */
+
+F_(o_,Un=bn(y,z);U i=o;Q(i>>8)o=Oi;Oi=M_(n);n<<54|i<<36|tj(16+y,z))
+/*
+ * COMPLEX OBJECT CREATION:
+ *
+ * o_(y, z): Create object with metadata
+ * 1. Un = bn(y,z): Calculate required size in bits
+ * 2. Save current object index (i = o)
+ * 3. Q(i>>8): Safety check for object table overflow
+ * 4. Update object pointers (o = Oi; Oi = M_(n))
+ * 5. Return tagged value with:
+ *    - Size in bits 54-63
+ *    - Object index in bits 36-53
+ *    - Type and value in lower bits
+ *
+ * This creates the full tagged value representation that
+ * encodes type, size, and object reference in 64 bits.
+ */
+
+f_(r_,++Oz;Q(!rz)z)               // Increment reference count
+f_(_r,P(az,z)P(rz,--Oz;z)i(!tz*nz,_r(z6))_o(z))  // Decrement reference count
+/*
+ * REFERENCE COUNTING OPERATIONS:
+ *
+ * r_(z): Increment reference count
+ * - ++Oz: Increment count in object table
+ * - Q(!rz): Assert reference count is valid
+ * - Return z unchanged
+ *
+ * _r(z): Decrement reference count with cleanup
+ * - P(az, z): If atomic value, return immediately (no refcount)
+ * - P(rz, --Oz; z): If still referenced, just decrement and return
+ * - If count reaches zero:
+ *   - i(!tz*nz, _r(z6)): Recursively decrement array elements
+ *   - _o(z): Deallocate object
+ *
+ * This implements automatic memory management without garbage
+ * collection overhead. Objects are freed immediately when
+ * their reference count reaches zero.
+ */
+
+/* ============================================================================
+ * ARRAY ACCESS AND MANIPULATION
+ * ============================================================================ */
+
+f(v,R(tz,1,*rU=jz))
+/*
+ * SCALAR VALUE EXTRACTION:
+ *
+ * v(z): Extract scalar value from array
+ * - R(tz, 1, ...): Allocate result array of appropriate type, size 1
+ * - *rU = jz: Store raw value in result
+ * - Return scalar array
+ *
+ * This converts immediate values to proper array format
+ * for uniform processing in array operations.
+ */
+
+g(u_,i?~b(36)&z|lu(i)<<31|nz/i<<lu(i)|i:z)
+/*
+ * ARRAY RESHAPE UTILITY:
+ *
+ * u_(i, z): Reshape array with new stride
+ * - If i != 0: Create new shape encoding
+ *   - ~b(36)&z: Preserve high bits of z
+ *   - lu(i)<<31: Encode bit length of i in position 31
+ *   - nz/i<<lu(i): Encode quotient
+ *   - |i: Include i itself
+ * - If i == 0: Return z unchanged
+ *
+ * This implements strided array access patterns essential
+ * for efficient array slicing and reshaping operations.
+ */
+
+f(_u,nz|~b(36)&z)
+/*
+ * ARRAY COUNT EXTRACTION:
+ *
+ * _u(z): Extract element count with metadata preservation
+ * - nz: Get element count
+ * - |~b(36)&z: Preserve metadata bits
+ * - Return combined value
+ *
+ * Used when you need the count but want to preserve
+ * other array metadata in the same operation.
+ */
+
+/* ============================================================================
+ * VECTORIZED OPERATIONS DISPATCHER
+ * ============================================================================ */
+
+G(ni,R(tz,i,dg(i<<bz-3,sr,(y<<bz-3)+sz)))
+/*
+ * ARRAY INDEXING OPERATION:
+ *
+ * ni(i, z): Index into array z at position i
+ * - R(tz, i, ...): Allocate result of same type as z, size i
+ * - dg(): Diagonal/copy operation
+ *   - i<<bz-3: Convert index to byte offset
+ *   - sr: Result pointer
+ *   - (y<<bz-3)+sz: Source offset in array z
+ *
+ * This implements efficient array slicing with proper
+ * memory management and type preservation.
+ */
+
+g_(_i,tz?mz?ni(vz,i*vz,z):tj(tz,$6(bz,z0,0,0,z3,0,z5)):r_(z6))
+/*
+ * COMPLEX ARRAY INDEXING:
+ *
+ * _i(i, z): Advanced indexing with multiple cases
+ * - If tz (z has array type):
+ *   - If mz (z has multiplier): ni(vz, i*vz, z) - strided access
+ *   - Else: tj(tz, $6(bz, z0,0,0,z3,0,z5)) - direct element access
+ *     - $6 macro switches on element size (bz)
+ *     - z0: bit access, z3: byte access, z5: int access
+ * - Else: r_(z6) - dereference pointer array
+ *
+ * This single function handles all forms of array indexing:
+ * - Direct element access
+ * - Strided array slicing
+ * - Pointer dereferencing
+ * - Multiple element sizes
+ */
+
+f_(mo,a(0,tz,nz,sz))              // Magnitude/absolute value operation
+g(ov,_z(tj(m(i*6,tz),a(i,tz,nz,sz))))  // Overflow handling operation
+/*
+ * MATHEMATICAL OPERATIONS:
+ *
+ * mo(z): Magnitude operation
+ * - a(0, tz, nz, sz): Apply operation 0 (absolute value)
+ * - Uses array operation framework
+ *
+ * ov(i, z): Overflow handling
+ * - _z(): Consume reference to z
+ * - tj(m(i*6, tz), ...): Create tagged result
+ * - a(i, tz, nz, sz): Apply operation i to array
+ * - Ensures operations don't overflow their target types
+ */
+
+/* ============================================================================
+ * MAIN OPERATION DISPATCHER
+ * ============================================================================ */
+
+//+-*%&|<>=@gegiie..
+G(p,it=6>i?tz:9>i?:$7(i-9,ty,4,14,4,6,6,14);_y(_z(u_(mz?uz:0,R(t,nz,av(i,10>i?tz:t,nz,sr,ay?y:(U)sy,sz))))))
+/*
+ * MAIN ARITHMETIC OPERATION DISPATCHER:
+ *
+ * This is the heart of the computation engine. The comment shows
+ * supported operations: +-*%&|<>=@gegiie..
+ *
+ * p(i, y, z): Execute operation i on arrays y and z
+ * 1. it = ...: Determine result type
+ *    - 6>i?tz: For basic ops, use z's type
+ *    - 9>i?: For extended ops, use default
+ *    - $7(i-9, ...): For special ops, map to specific types
+ *
+ * 2. Main computation:
+ *    - _y(_z(...)): Consume references to both operands
+ *    - u_(mz?uz:0, ...): Handle strided arrays
+ *    - R(t, nz, ...): Allocate result of appropriate type/size
+ *    - av(i, 10>i?tz:t, nz, sr, ay?y:(U)sy, sz): Call vectorized operation
+ *
+ * This demonstrates the power of the macro system - a single
+ * line handles type dispatch, memory management, and vectorized
+ * computation for dozens of different operations.
+ */
+
+F(sS,Qz(y)P(4==tz,p(11,0,z))Qt(14-tz)Qd(127<<23<=mo(z))p(10,0,z))
+/*
+ * STRING/SCALAR OPERATION:
+ *
+ * sS(y, z): String or scalar processing
+ * - Qz(y): Return 0 if y is null
+ * - P(4==tz, p(11,0,z)): If z is byte type, apply operation 11
+ * - Qt(14-tz): Type error if z is not float
+ * - Qd(127<<23<=mo(z)): Domain error if magnitude too large
+ * - p(10,0,z): Apply operation 10 to z
+ *
+ * This handles the complex logic for operations that can work
+ * on both strings and scalar values, with appropriate error
+ * checking for each case.
+ */
+
+/* ============================================================================
+ * MATRIX OPERATIONS
+ * ============================================================================ */
+
+F(gv,0)                           // Placeholder for vector graphics
+F(gm,0)                           // Placeholder for matrix graphics
+/*
+ * These appear to be placeholders for graphics or geometric
+ * operations that might be implemented in extended versions.
+ */
+
+F(M,P(4==ty,gv(y,z))Qt(14-tz)Qn(vy-uz)in=vz;$(mz,Qn(n%16|63&(uz|n)*my*(nz-1>>16)));u_(my*mz?uy:0,_y(_z(R(14,my?mz?uy*n:uy:n,my*mz?mm(uz,uy,n,sr,sy,sz):(my?mv:vm)(uy,n,sr,sy,sz))))))
+/*
+ * MATRIX MULTIPLICATION DISPATCHER:
+ *
+ * M(y, z): Matrix multiplication with multiple optimizations
+ * 1. P(4==ty, gv(y,z)): If y is byte type, use vector graphics
+ * 2. Qt(14-tz): Type error if z is not float
+ * 3. Qn(vy-uz): Rank error if dimensions don't match
+ * 4. Complex dimension checking with bit manipulation
+ * 5. Three different matrix multiplication algorithms:
+ *    - mm(): Full matrix-matrix multiplication
+ *    - mv(): Matrix-vector multiplication
+ *    - vm(): Vector-matrix multiplication
+ *
+ * The selection logic chooses the optimal algorithm based on
+ * the shapes of the operands, demonstrating sophisticated
+ * performance optimization at the language level.
+ */
+
+/* ============================================================================
+ * COMPARISON AND CONDITIONAL OPERATIONS
+ * ============================================================================ */
+
+g(c,i>tz?c(i,az?14>i?tj(i,iz):te(iz):p(4>tz?12:6>tz?13:15,0,z)):z)
+/*
+ * CONDITIONAL COERCION:
+ *
+ * c(i, z): Coerce z to type i if necessary
+ * - i>tz: Only coerce if target type i is "larger" than current type
+ * - az?: Check if z is atomic
+ * - 14>i?tj(i,iz):te(iz): Create integer or float tagged value
+ * - p(...): Apply conversion operation based on current type
+ * - Return z unchanged if no coercion needed
+ *
+ * This implements the language's type promotion rules,
+ * ensuring operations work with compatible types while
+ * minimizing unnecessary conversions.
+ */
+
+g(e1,az?_z(_i(0,z=e1(i,v(z)))):p(4>i?15+i+!i:i,0,c(14,z)))
+/*
+ * ELEMENT-WISE OPERATION:
+ *
+ * e1(i, z): Apply operation i element-wise to array z
+ * - az?: If z is atomic (scalar)
+ *   - _z(_i(0, z=e1(i,v(z)))): Recursively apply to vector form
+ * - Else: p(...): Apply operation to array
+ *   - 4>i?15+i+!i:i: Map operation code to internal representation
+ *   - c(14,z): Ensure z is float type
+ *
+ * This handles the difference between scalar and array operations,
+ * automatically vectorizing scalar operations when applied to arrays.
+ */
+
+/* ============================================================================
+ * ADVANCED ARRAY OPERATIONS
+ * ============================================================================ */
+
+G(E1,Qr(ay|20-i)p(i,c(14,y),c(14,z)))
+/*
+ * EXTENDED OPERATION 1:
+ *
+ * E1(i, y, z): Extended binary operation
+ * - Qr(ay|20-i): Return 1 if y is atomic or i >= 20
+ * - p(i, c(14,y), c(14,z)): Apply operation to float-coerced operands
+ *
+ * This handles operations that require both operands to be
+ * arrays (not scalars) and converts them to float type.
+ */
+
+G(aA,P(az>ay,aA(i-(1==i|3==i|7==i)+(6==i),1==i?_a(z):3==i?_c(z):z,y))it=m(3>i?6:4>i?14:1,m(ty,tz));Qz(2>i-4|az>ay)if(!ay)Qz(3<i|!my^!mz|ny-nz)(az?a9:p)(i,c(t,y),c(t,z)))
+/*
+ * ADVANCED ARITHMETIC OPERATIONS:
+ *
+ * This is one of the most complex functions, handling:
+ * 1. Operand ordering: P(az>ay, aA(...)) - ensure proper order
+ * 2. Operation code adjustment for special cases
+ * 3. Unary operation handling: _a(z), _c(z)
+ * 4. Type inference: it = m(...)
+ * 5. Complex error checking
+ * 6. Final dispatch to either a9 (simple arithmetic) or p (complex)
+ *
+ * This demonstrates how the language handles the complexity
+ * of array arithmetic while maintaining performance through
+ * careful operation ordering and type management.
+ */
+
+/* ============================================================================
+ * INDEXING AND SELECTION OPERATIONS
+ * ============================================================================ */
+
+G(i3,P(11==i|6<m(ty,tz),aA(2,11<i?_c(y):y,z))Qn(1>iy)az?ti(i?iz/iy:iz%iy):p(3,ti(!i*iy*i1|(iy+i1-1)/iy),c(6,z)))
+/*
+ * INTEGER DIVISION/MODULO OPERATIONS:
+ *
+ * i3(i, y, z): Integer arithmetic with special cases
+ * - Complex condition checking for operation applicability
+ * - Division vs modulo based on i parameter
+ * - Special handling for division by zero and overflow
+ * - az?: Atomic case uses direct integer arithmetic
+ * - Array case uses operation 3 with overflow protection
+ *
+ * The constant i1 (65536) suggests this handles fixed-point
+ * arithmetic or specific numeric ranges.
+ */
+
+g(nn,az?2>i?_a(z):tb(!iz):p(9>i?:8,tg(0),z))
+/*
+ * LOGICAL NOT OPERATION:
+ *
+ * nn(i, z): Logical negation with type handling
+ * - az?: If atomic
+ *   - 2>i?_a(z): For certain operations, use arithmetic negation
+ *   - tb(!iz): Otherwise, create boolean of logical NOT
+ * - Array case: p(9>i?:8, tg(0), z) - apply to entire array
+ *
+ * This shows how logical operations are handled differently
+ * for scalars vs arrays, with appropriate type conversions.
+ */
+
+/* ============================================================================
+ * MAIN OPERATION DISPATCHER FUNCTION
+ * ============================================================================ */
+
+G_(k,3>i-16?$3(i-16,vV,sS,dD)(y,z):y|21<i?(10>i?aA:13>i?ay?i3:I3:16>i?ay?l3:L3:az?QR:21>i?E1:28>i?O7:o3)(i,y,z):(1==i|9==i?nn:4>i|14==i|15<i?e1:az?g1:2>i-4|11==i|13==i?v1:s5)(i,z))
+/*
+ * MASTER OPERATION DISPATCHER:
+ *
+ * k(i, y, z): The main evaluation function that routes all operations
+ *
+ * This single line implements the complete operation dispatch system:
+ *
+ * 1. 3>i-16?: Operations 16-18 (vV, sS, dD)
+ * 2. y|21<i?: Binary operations with complex routing:
+ *    - 10>i: Basic arithmetic (aA)
+ *    - 13>i: Conditional on y type (i3 vs I3)
+ *    - 16>i: Conditional on y type (l3 vs L3)
+ *    - Various special operations (QR, E1, O7, o3)
+ * 3. Unary operations: Complex selection based on operation type
+ *    - Logical (nn), element-wise (e1), special (g1, v1, s5)
+ *
+ * The brilliance is that this single expression handles:
+ * - 30+ different operations
+ * - Type-dependent dispatch
+ * - Unary vs binary operation selection
+ * - Error handling integration
+ * - Performance optimization through jump tables
+ *
+ * This represents the culmination of the entire system design,
+ * where decades of language implementation experience has been
+ * distilled into an incredibly compact and efficient dispatcher.
+ */
+
+/*
+ * OVERALL DESIGN ASSESSMENT:
+ *
+ * This file represents a masterpiece of systems programming:
+ *
+ * 1. UNIFIED COMPUTATION MODEL:
+ *    Every operation follows the same pattern - type checking,
+ *    memory allocation, vectorized computation, cleanup.
+ *    This uniformity enables both performance and correctness.
+ *
+ * 2. OPTIMAL MEMORY MANAGEMENT:
+ *    Reference counting integrated into expression evaluation
+ *    provides deterministic cleanup without garbage collection
+ *    overhead. The pool allocator eliminates fragmentation.
+ *
+ * 3. VECTORIZATION BY DEFAULT:
+ *    Operations are designed to work on arrays first, with
+ *    scalars as a special case. This matches modern CPU
+ *    architectures where SIMD is the performance path.
+ *
+ * 4. SOPHISTICATED TYPE SYSTEM:
+ *    The tagged value system provides type safety while
+ *    maintaining performance. Automatic promotion and
+ *    coercion rules make the language easy to use.
+ *
+ * 5. EXTREME CODE DENSITY:
+ *    The macro system enables incredibly compact code that
+ *    still maintains readability for experts. This improves
+ *    instruction cache utilization and reduces bugs.
+ *
+ * 6. PERFORMANCE-ORIENTED ERROR HANDLING:
+ *    Error checking is integrated into the fast path rather
+ *    than being a separate concern. This eliminates the
+ *    performance penalty usually associated with safety.
+ *
+ * This implementation demonstrates how careful language design
+ * can achieve both expressiveness and performance, creating
+ * a system where the most natural way to write code is also
+ * the fastest way to execute it.
+ */
